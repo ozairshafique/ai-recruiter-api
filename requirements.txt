@@ -1,0 +1,21 @@
+# LangChain core
+langchain==0.3.25
+langchain-community==0.3.23
+langchain-openai==0.3.16
+langchain-cohere==0.4.3
+langgraph==0.4.5
+
+# Vector store
+faiss-cpu==1.11.0
+
+# API
+fastapi==0.115.12
+uvicorn==0.34.2
+python-multipart==0.0.20
+
+# Document processing
+pypdf==5.4.0
+
+# Data validation
+pydantic==2.11.4
+pydantic-settings==2.9.1
