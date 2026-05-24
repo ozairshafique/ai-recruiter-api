@@ -12,18 +12,19 @@ class Settings(BaseSettings):
 
     # Grok API settings
     groq_api_key: str
-    groq_model: str = "llama-3.3-70b-verstile"
-    temperature: float = 0.1
+    groq_model: str = "llama-3.3-70b-versatile"
+    temperature: float = 0.0
 
     # Cohere API settings
-    cohere_model: str = "embed-multilingual-v3.0"
     cohere_api_key: str
+    cohere_model: str = "embed-multilingual-v3.0"
+
 
     # LangChain settings
     langchain_api_key: str
     langchain_tracing_v2: bool = True
-    langchain_project_name: str = "AI-Recruiter-API"
-    langchain_endpoint: str = "https://api.langchain.com"
+    langchain_project: str = "AI-Recruiter-API"
+    langchain_endpoint: str = "https://api.smith.langchain.com"
 
     # FAISS settings
     faiss_index_path: str = "./faiss_index"
