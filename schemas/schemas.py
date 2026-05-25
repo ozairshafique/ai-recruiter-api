@@ -34,7 +34,7 @@ class ExperienceLevel(str, Enum):
 # ── Upload Schemas ────────────────────────
 
 class UploadResponse(BaseModel):
-    """ Response schmeas of file upload endpoints """
+    """ Response schema of file upload endpoints """
     status: ResponseStatus
     message: str
     filename: str
@@ -84,6 +84,7 @@ class SourceDocument(BaseModel):
     page: Optional[int] = Field(None, description="Page number in the pdf document")
     score: Optional[float] = Field(None, ge=0.0, le=1.0, description="Relevance score from FAISS")
     document_id: Optional[str] = Field(None, description="Source document ID")
+
 
 class QueryResponse(BaseModel):
     """ Schema for query responses """
@@ -153,6 +154,8 @@ class JobMatchResponse(BaseModel):
     class Config:
         use_enum_values = True
 
+# ── Health Check Schemas ────────────────────
+
 
 class HealthCheck(BaseModel):
     """ Schema for health check endpoint response """
@@ -166,3 +169,29 @@ class HealthCheck(BaseModel):
 
     class Config:
         use_enum_values = True
+
+
+class ErrorResponse(BaseModel):
+    """ Schema of error response """
+    status: ResponseStatus = ResponseStatus.ERROR
+    message: str
+    detail: Optional[str] = None
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        use_enum_values = True
+
+__all__ = [
+    "JobType",
+    "ResponseStatus",
+    "ExperienceLevel",
+    "UploadResponse",
+    "QueryRequest",
+    "SourceDocument",
+    "QueryResponse",
+    "CandidateProfile",
+    "JobMatch",
+    "JobMatchResult",
+    "JobMatchResponse",
+    "HealthCheck",
+    "ErrorResponse"]
