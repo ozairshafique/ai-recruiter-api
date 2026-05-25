@@ -77,3 +77,23 @@ class QueryRequest(BaseModel):
         if not value.strip():
             raise ValueError("Question cannot be empty or whitespace")
         return value.strip()
+
+class SourceDocument(BaseModel):
+    """ Schema for source documents returned in query responses """
+    content: str = Field(..., description="Relevant content from the source document")
+    page: Optional[int] = Field(None, description="Page number in the pdf document")
+    score: Optional[float] = Field(None, ge=0.0, le=1.0, description="Relevance score from FAISS")
+    document_id: Optional[str] = Field(None, description="Source document ID")
+
+class QueryResponse(BaseModel):
+    """ Schema for query responses """
+    status: ResponseStatus
+    question: str
+    answer: str
+    sources: List[SourceDocument] = Field(default_factory=list, description="Source chunks used to generate the answer")
+    model: str = Field(..., description="The model used to generate the answer")
+    latency: Optional[float] = Field(None, description="Response latency in milliseconds")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        use_enum_values = True
