@@ -21,3 +21,12 @@ class ResponseStatus(str, Enum):
     SUCCESS = "success"
     ERROR = "error"
     PROCESSING = "processing"
+
+
+class ExperienceLevel(str, Enum):
+    """ Experience levels for job postings """
+    ENTRY = "entry"
+    MID = "mid"
+    SENIOR = "senior"
+    LEAD = "lead"
+    JUNIOR = "junior"
