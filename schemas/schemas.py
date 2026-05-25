@@ -124,7 +124,45 @@ class CandidateProfile(BaseModel):
 class JobMatch(BaseModel):
     """ Schema for job matches returned in job matching endpoints """
 
-    job_description: str = Field(..., min_length=20, max_length=1000, description="The job description text to mach against CV")
+    job_description: str = Field(..., min_length=20, max_length=1000, description="The job description text to match against CV")
     top_k: Optional[int] = Field(default=5, ge=1, le=20, description="Number of top matching candidates to return")
     experience_level: Optional[ExperienceLevel] = None
     job_type: Optional[JobType] = None
+
+
+class JobMatchResult(BaseModel):
+    """ Result for single job match """
+
+    candidate_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    full_name: Optional[str] = None
+    match_score: float = Field(..., ge=0.0, le=1.0,
+    description="Match score between the candidate and the job description")
+    matched_skills: List[str] = Field(default_factory=list, description="List of skills that matched between the candidate and the job description")
+    summary: Optional[str] = None
+    document_id: Optional[str] = None
+
+
+class JobMatchResponse(BaseModel):
+    """ Schema for job match responses """
+    status: ResponseStatus
+    job_description: str
+    matches: int
+    results: List[JobMatchResult]
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        use_enum_values = True
+
+
+class HealthCheck(BaseModel):
+    """ Schema for health check endpoint response """
+    status: ResponseStatus
+    app: str
+    version: str
+    embeddings: str
+    model: str
+    faiss_index: bool
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        use_enum_values = True
