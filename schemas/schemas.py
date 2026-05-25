@@ -97,3 +97,34 @@ class QueryResponse(BaseModel):
 
     class Config:
         use_enum_values = True
+
+# ── Candidate Schemas ───────────────────────
+
+class CandidateProfile(BaseModel):
+    """ Schema for candidate profiles extracted from documents """
+    candidate_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    skills: List[str] = Field(default_factory=list)
+    experience_years: Optional[float] = None
+    experience_level: Optional[ExperienceLevel] = None
+    education: Optional[str] = None
+    job_type: Optional[JobType] = None
+    summary: Optional[str] = None
+    document_id: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        use_enum_values = True
+
+# ── Job Match Schemas ───────────────────────────
+
+
+class JobMatch(BaseModel):
+    """ Schema for job matches returned in job matching endpoints """
+
+    job_description: str = Field(..., min_length=20, max_length=1000, description="The job description text to mach against CV")
+    top_k: Optional[int] = Field(default=5, ge=1, le=20, description="Number of top matching candidates to return")
+    experience_level: Optional[ExperienceLevel] = None
+    job_type: Optional[JobType] = None
