@@ -14,3 +14,10 @@ class JobType(str, Enum):
     CONTRACT = "contract"
     FREELANCE = "freelance"
     INTERNSHIP = "internship"
+
+
+class ResponseStatus(str, Enum):
+    """ Standard response status """
+    SUCCESS = "success"
+    ERROR = "error"
+    PROCESSING = "processing"
