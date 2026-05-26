@@ -9,7 +9,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 
 logger = get_logger(__name__)
-setting = get_settings()
+settings = get_settings()
 
 # ── Validate File ───────────────────
 
@@ -18,7 +18,7 @@ def validate_file(file_path: str) -> None:
     """
 
     path = Path(file_path)
-    if not path.exist():
+    if not path.exists():
         logger.error(f"File not found: {file_path}")
         raise FileNotFoundError(f"File not found: {file_path}")
 
@@ -26,7 +26,7 @@ def validate_file(file_path: str) -> None:
         logger.error(f"Unsupported file type: {path.suffix}")
         raise ValueError(f"Unsupported file type: {path.suffix}")
 
-    if not path.stat().st_size == 0:
+    if path.stat().st_size == 0:
         logger.error(f"File is empty: {file_path}")
         raise ValueError(f"File is empty: {file_path}")
 
@@ -39,12 +39,13 @@ def load_pdf(file_path: str) -> List[Document]:
     """
     try:
         logger.info(f"Loading PDF file: {file_path}")
-        loader = PyMuPDFLoader.load(file_path)
+        loader = PyMuPDFLoader(file_path)
         documents = loader.load()
 
         if not documents:
             raise ValueError(f"No content found in PDF: {file_path}")
         logger.info(f"PDF loaded successfully: {file_path} with {len(documents)} pages")
+        return documents
 
     except FileNotFoundError:
         logger.error(f"File not found: {file_path}")
@@ -60,24 +61,25 @@ def split_documents(documents: List[Document],
                     chunk_size: int = None, chunk_overlap: int = None) -> List[Document]:
     """ Split documents into smaller chunks """
 
-    chunk_size = chunk_size or setting.chunk_size
-    chunk_overlap = chunk_overlap or setting.chunk_overlap
+    chunk_size = chunk_size or settings.chunk_size
+    chunk_overlap = chunk_overlap or settings.chunk_overlap
 
     logger.info(f"Splitting documents {len(documents)} "
-                f"Chuck size: {chunk_size} "
+                f"Chunk size: {chunk_size} "
                 f"Chunk overlap: {chunk_overlap}")
 
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size = chunk_size,
         chunk_overlap = chunk_overlap,
-        len_function = len,
-        separator = ["\n\n", "\n", " ", ""]
+        length_function = len,
+        separators = ["\n\n", "\n", " ", ""]
     )
 
     chunks = text_splitter.split_documents(documents)
 
     if not chunks:
         logger.error("No chunks created from documents")
+        raise ValueError("No chunks created from documents")
 
     logger.info(f"Documents split into {len(chunks)} chunks")
     return chunks
@@ -93,15 +95,64 @@ def enrich_metadata(
 
     document_id = document_id or str(uuid.uuid4())
 
-    for index, chunks in enumerate(chunks):
-        chunks.metadata.update({
+    for index, chunk in enumerate(chunks):
+        chunk.metadata.update({
             "document_id": document_id,
             "chunk_index": index,
             "file_name": file_name,
-            "total chunks": len(chunks)
+            "total_chunks": len(chunks)
         })
 
-        logger.info(f"Enriched metadata for chunk {index} | "
+    logger.info(f"Enriched metadata for chunk {index} | "
                     f"document_id: {document_id} | "
                     f"file_name: {file_name}")
     return chunks
+
+# ── Main Ingestion Pipeline ────────────
+
+def ingest_file(
+        path_file: str,
+        file_name: str,
+        document_id: str = None,
+) -> dict:
+    """ Main ingestion pipeline to validate, load, split and enrich documents
+    """
+
+    start_time = time.time()
+    document_id = document_id or str(uuid.uuid4())
+
+    logger.info(
+        f"Starting ingestion pipeline for file: {file_name} | "
+        f"document_id: {document_id}"
+    )
+
+    try:
+        validate_file(path_file)
+
+        documents = load_pdf(path_file)
+
+        chunks = split_documents(documents)
+
+        chunks = enrich_metadata(chunks, file_name, document_id)
+
+        latency = round((time.time() - start_time) * 1000 , 2)
+        logger.info(f"Ingestion pipeline completed for file: {file_name} | "
+                    f"pages: {len(documents)} | "
+                    f"chunks: {len(chunks)} | "
+                    f"latency: {latency:.2f} seconds")
+        return {
+            "document_id": document_id,
+            "file_name": file_name,
+            "pages": len(documents),
+            "chunks": len(chunks),
+            "latency_seconds": latency,
+            "documents": chunks,
+        }
+
+    except (FileNotFoundError, ValueError) as e:
+        logger.error(f"Ingestion pipeline failed for file: {file_name} | error={e}")
+        raise
+
+    except Exception as e:
+        logger.error(f"Unexpected error during ingestion pipeline for file: {file_name} | error={e}")
+        raise
