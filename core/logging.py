@@ -43,7 +43,7 @@ def setup_logging() -> logging.Logger:
     # File handler with rotation
     file_handler = RotatingFileHandler(
         LOG_DIR/"app.log",
-        max_bytes=5 * 1024 * 1024, # 5 MB
+        maxBytes=5 * 1024 * 1024, # 5 MB
         backupCount=5,
         encoding="utf-8"
     )
@@ -53,7 +53,7 @@ def setup_logging() -> logging.Logger:
     # Error file handler with rotation
     error_file_handler = RotatingFileHandler(
         LOG_DIR/"error.log",
-        max_bytes=5 * 1024 * 1024, # 5 MB
+        maxBytes=5 * 1024 * 1024, # 5 MB
         backupCount=5,
         encoding="utf-8"
     )
