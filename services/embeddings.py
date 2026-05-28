@@ -96,6 +96,19 @@ def check_faiss_index(index_path: str) -> bool:
     """ Check if a FAISS index exists at the specified path and return True if it exists, otherwise False
     """
     index_path = index_path or settings.faiss_index_path
-    exsists = Path(index_path).exists()
-    logger.info(f"Checking FAISS index at {index_path} | Exists: {exsists}")
-    return exsists
+    exists = Path(index_path).exists()
+    logger.info(f"Checking FAISS index at {index_path} | Exists: {exists}")
+    return exists
+
+# ── Add Documents to FAISS Index ────────────────
+def add_documents_to_index(vector_store: FAISS, documents: List[Document]) -> None:
+    """ Add new documents to the existing FAISS index
+    """
+    try:
+        logger.info(f"Adding {len(documents)} documents to FAISS index")
+        vector_store.add_documents(documents)
+        logger.info(f"Documents added to FAISS index successfully | Total Documents: {len(vector_store)}")
+        return vector_store
+    except Exception as e:
+        logger.error(f"Error adding documents to FAISS index: {e}")
+        raise
