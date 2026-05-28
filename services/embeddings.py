@@ -54,7 +54,7 @@ def create_faiss_index(documents: List[Document], embeddings: CohereEmbeddings =
         raise
 
 # ── Save FAISS Index ────────────────
-def save_faiss_index(vector_store: FAISS, index_path: str) -> str:
+def save_faiss_index(vector_store: FAISS, index_path: str = None) -> str:
     """ Save the FAISS index to the specified path and return the path to the saved index
     """
 
@@ -71,7 +71,7 @@ def save_faiss_index(vector_store: FAISS, index_path: str) -> str:
         raise
 
 # ── Load FAISS Index ────────────────
-def load_faiss_index(index_path: str, embeddings: CohereEmbeddings = None) -> FAISS:
+def load_faiss_index(index_path: str = None, embeddings: CohereEmbeddings = None) -> FAISS:
     """ Load a FAISS index from the specified path and return the loaded index
     """
     index_path = index_path or settings.faiss_index_path
@@ -101,7 +101,7 @@ def check_faiss_index(index_path: str) -> bool:
     return exists
 
 # ── Add Documents to FAISS Index ────────────────
-def add_documents_to_index(vector_store: FAISS, documents: List[Document]) -> None:
+def add_documents_to_index(vector_store: FAISS, documents: List[Document]) -> FAISS:
     """ Add new documents to the existing FAISS index
     """
     try:
@@ -111,4 +111,32 @@ def add_documents_to_index(vector_store: FAISS, documents: List[Document]) -> No
         return vector_store
     except Exception as e:
         logger.error(f"Error adding documents to FAISS index: {e}")
+        raise
+
+# ── Main Embeddings Piplines ────────────────
+def embed_and_store(documents: List[Document], index_path: str = None) -> dict:
+    """ Main pipeline to embed documents and store them in a FAISS index
+    """
+
+    start_time = time.time()
+    index_path  = index_path or settings.faiss_index_path
+
+    logger.info(f"Starting embedding and storage pipeline | Documents: {len(documents)} | Index Path: {index_path}")
+    try:
+        embeddings  = get_embeddings()
+        vector_store = create_faiss_index(documents, embeddings)
+        save_faiss_index(vector_store, index_path)
+
+        latency = round((time.time() - start_time) * 1000, 2)
+
+        logger.info(f"Pipeline Summary | Documents: {len(documents)} | Index Path: {index_path} | Latency: {latency} ms")
+
+        return {
+            "index_path": index_path,
+            "documents_embedded": len(documents),
+            "latency_ms": latency,
+            "vector_store": vector_store
+        }
+    except Exception as e:
+        logger.error(f"Error in embedding and storage pipeline: {e}")
         raise
