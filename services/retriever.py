@@ -1,4 +1,5 @@
 from typing import List, Optional
+import time
 from langchain_core import Document
 from langchain_comunity.vectorstores import FAISS
 from core.config import get_settings
@@ -61,3 +62,30 @@ def format_retrieved_documnets(results: List[tuple]) -> List[dict]:
         return formatted
 
 
+#── Retrieve Documents from Disk ──────────────────
+def retrieve_from_disk(query: str, index_path: str = None, top_k: int = None) -> List[dict]:
+    """ Retrieve similar documents from the FAISS index stored on disk based on the query and return the top_k results with similarity scores
+    """
+
+    start_time = time.time()
+    top_k = top_k or settings.top_k
+    index_path = index_path or settings.faiss_index_path
+
+    try:
+        if not check_faiss_index(index_path):
+            raise FileNotFoundError(f"FAISS index not found at {index_path}")
+
+        vector_store = load_faiss_index(index_path=index_path)
+
+        results = similarity_search_with_scores(query, vector_store, top_k)
+        formatted_results = format_retrieved_documnets(results)
+        latency = round((time.time() - start_time) * 1000, 2)
+        logger.info(f"Retrieval from disk completed | Results: {len(formatted_results)} | Latency: {latency:.2f} ms")
+        return formatted_results
+
+    except FileNotFoundError:
+        logger.error(f"FAISS index not found at {index_path}")
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving from disk: {e}")
+        raise
