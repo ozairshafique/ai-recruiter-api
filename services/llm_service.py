@@ -9,7 +9,7 @@ settings = get_settings()
 logger = get_logger(__name__)
 
 # ── Initialize LLM ────────────────
-def initialize_llm(temperature: float = None, max_tokens: int = None) -> ChatGroq:
+def initialize_llm(temperature: float = None, max_tokens: int = 1024) -> ChatGroq:
     """ Initialize the LLM with the given parameters """
 
     try:
