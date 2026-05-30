@@ -49,3 +49,34 @@ def format_context(retrieved_documents: List[dict]) -> str:
     context = "\n\n".join(context_parts)
     logger.info(f"Formatted context with {len(retrieved_documents)} documents")
     return context
+
+# ── Generate Response ──────────────────
+def generate_answer(question: str, context: str, llm: ChatGroq = None, system_prompt: str = None) -> str:
+    """ Generate an answer to the question using the LLM and the provided context
+    """
+
+    llm = llm or initialize_llm()
+    system_prompt = system_prompt or """
+    You are an AI expert assistant.
+    Answer questions based on ONLY the provided context.
+    If is not in the context, say 'I can not find revelant information'.
+    Be concise, professional and accurate.
+"""
+
+    try:
+        logger.info(f"Generating answer | Question: {question[:50]}")
+        prompt = ChatPromptTemplate.from_messages([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=f"Context:\n{context}\n\nQuestion: {question}")
+        ])
+
+        chain = prompt | llm
+        response = chain.invoke("context", context, "question", question)
+        answer = response.content # Extract the content from the response
+        logger.info(f"Answer generated successfully | length: {len(answer[:50])}")
+        return answer
+
+    except Exception as e:
+        logger.error(f"Error generating answer: {e}")
+        raise
+
