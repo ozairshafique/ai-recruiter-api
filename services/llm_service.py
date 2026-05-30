@@ -1,7 +1,6 @@
 from typing import List, Optional
 import time
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 from core.config import get_settings
 from core.logging import get_logger
@@ -66,17 +65,52 @@ def generate_answer(question: str, context: str, llm: ChatGroq = None, system_pr
     try:
         logger.info(f"Generating answer | Question: {question[:50]}")
         prompt = ChatPromptTemplate.from_messages([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=f"Context:\n{context}\n\nQuestion: {question}")
+            ("system", system_prompt),
+            ("human", "Context:\n{context}\n\nQuestion: {question}")
         ])
 
-        chain = prompt | llm
-        response = chain.invoke("context", context, "question", question)
+        chain = prompt | llm # Create a chain that combines the prompt and the LLM
+        # Invoke the chain with the question and context to generate the answer
+        response = chain.invoke({
+            "context": context, "question": question
+            })
+
         answer = response.content # Extract the content from the response
-        logger.info(f"Answer generated successfully | length: {len(answer[:50])}")
+        logger.info(f"Answer generated successfully | length: {len(answer)} characters")
         return answer
 
     except Exception as e:
         logger.error(f"Error generating answer: {e}")
         raise
 
+
+# ── LLM Piplines ───────────────
+def llm_generate(question: str, retrieved_documents: List[dict], llm: ChatGroq = None, system_prompt: str = None) -> dict:
+    """ Generate an answer to the question using the LLM and the provided retrieved documents
+    """
+
+    start_time = time.time()
+    logger.info(f"LLM generation pipeline started | Question: {question[:50]} | sources: {len(retrieved_documents)}")
+
+    try:
+        llm = llm or initialize_llm()
+
+        context = format_context(retrieved_documents)
+
+        answer = generate_answer(question=question, context=context, llm=llm, system_prompt=system_prompt)
+
+        latency = round((time.time() - start_time)*1000, 2)
+
+        logger.info(f"LLM generation pipeline completed | Latency: {latency:.2f} ms")
+
+        return {
+            "answer": answer,
+            "context": context,
+            "model": settings.groq_model,
+            "sources":len(retrieved_documents),
+            "latency_ms": latency
+        }
+
+    except Exception as e:
+        logger.error(f"Error in LLM generation pipeline: {e}")
+        raise
