@@ -138,3 +138,49 @@ def test_create_faiss_index(mock_faiss_index):
         with patch("app.services.embeddings.get_embeddings", return_value=MagicMock()):
             results = create_faiss_index(docs)
             assert results is not None
+
+# ── Retriever Tests ────────────────────
+def test_format_retrieved_documents():
+    """ Test format_retrieved_documents with sample results """
+    mock_docs = MagicMock()
+    mock_docs.page_content = "This is the content of page 1"
+    mock_docs.metadata = {
+        "document_id": "test-doc-1234",
+        "file_name": "tests.pdf",
+        "chunk_index": 0,
+        "page": 1,
+    }
+    results = [(mock_docs, 0.25)]
+    formatted = format_retrieved_documents(results)
+
+    assert len(formatted) == 1
+    assert formatted[0]["content"] == "This is the content of page 1"
+    assert formatted[0]["document_id"] == "test-doc-1234"
+    assert formatted[0]["file_name"] == "tests.pdf"
+    assert formatted[0]["chunk_index"] == 0
+    assert formatted[0]["page"] == 1
+
+def test_similarity_search(mock_faiss_index):
+    """ Test similarity_search with sample results """
+    mock_faiss_index.similarity_search.return_value = [
+        Document(
+            page_content="This is the content of page 1",
+            metadata = {
+                "page": 1,
+            }
+        )
+    ]
+
+    results = similarity_search(
+        query="What is on page 1?",
+        vectorstore=mock_faiss_index,
+        top_k=5
+    )
+
+    assert len(results) == 1
+
+# ── LLM Service Tests ────────────────
+def test_format_context():
+    """ Test format_context with sample documents """
+    results = format_context([])
+    assert results == "No relevant documents found."
