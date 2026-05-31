@@ -2,7 +2,7 @@ import logging
 import sys
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
-from core.config import get_settings
+from app.core.config import get_settings
 
 
 setting = get_settings()  # Load settings to access debug flag

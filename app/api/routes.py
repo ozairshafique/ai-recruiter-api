@@ -1,13 +1,11 @@
 
 import shutil
-import os
 import time
 import uuid
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from services.rag_pipeline import run_ingest_pipeline, run_query_pipeline
-from fastapi.responses import JSONResponse
+from app.services.rag_pipeline import run_ingest_pipeline, run_query_pipeline
 from schemas.schemas import (
     UploadResponse,
     QueryRequest,
@@ -20,9 +18,9 @@ from schemas.schemas import (
     ResponseStatus,
     ErrorResponse,
 )
-from services.embeddings import check_faiss_index, load_faiss_index
-from core.config import get_settings
-from core.logging import get_logger
+from app.services.embeddings import check_faiss_index, load_faiss_index
+from app.core.config import get_settings
+from app.core.logging import get_logger
 
 settings = get_settings()
 logger = get_logger(__name__)
@@ -128,7 +126,7 @@ async def query_documents(request: QueryRequest) -> QueryResponse:
             SourceDocument(
                 content = doc.get("content", ""),
                 page = doc.get("page"),
-                source = doc.get("score"),
+                score = doc.get("score"),
                 document_id = doc.get("document_id")
             )
             for doc in result['sources']
@@ -139,7 +137,7 @@ async def query_documents(request: QueryRequest) -> QueryResponse:
         return QueryResponse(
             status=ResponseStatus.SUCCESS,
             question=request.question,
-            answer=request['answer'],
+            answer=result['answer'],
             sources=sources,
             model=result['model'],
             latency=result['latency_ms']
@@ -167,8 +165,68 @@ async def health_check() -> HealthCheck:
     return HealthCheck(
         status=ResponseStatus.SUCCESS,
         app=settings.app_name,
-        version=settings.app_version,
+        version=settings.api_version,
         embeddings=settings.cohere_model,
-        model=settings.fgroq_model,
+        model=settings.groq_model,
         faiss_index=check_faiss_index()
     )
+
+# ── List Documents Endpoint ────────────
+@router.get(
+    "/documents",
+    summary="List Uploaded Documents",
+    description="Get a list of all uploaded documents with metadata",
+    tags=["Documents"],
+)
+async def list_documents() -> dict:
+    """ Endpoint to list all indexed documents from FAISS index """
+
+    if not check_faiss_index():
+        raise HTTPException(
+            status_code=404,
+            detail="No documents found. Please upload a resume before querying."
+        )
+    try:
+        vector_store = load_faiss_index()
+        documents = vector_store.docstore._dict
+
+        # Extract documents from chunks
+        indexed_documents = {}
+        for doc_id, document in documents.items():
+            file_name = document.metadata.get("file_name")
+            document_id = document.metadata.get("document_id")
+            page = document.metadata.get("page")
+            total_chunks = document.metadata.get("total_chunks")
+
+            if document_id not in indexed_documents:
+                indexed_documents[document_id] = {
+                    "document_id": document_id,
+                    "file_name": file_name,
+                    "pages": set(),
+                    "total_chunks": total_chunks,
+                }
+            # Use a set to avoid duplicate pages
+            indexed_documents[document_id]["pages"].add(page)
+
+        # Convert sets to sorted lists
+        results = []
+        for doc in indexed_documents.values():
+            results.append({
+                "document_id": doc["document_id"],
+                "file_name": doc["file_name"],
+                "total_chunks": doc["total_chunks"],
+                "total_pages": len(doc["pages"])
+            })
+        logger.info(f"Listed {len(results)} indexed documents")
+        return {
+            "status": "success",
+            "total": len(results),
+            "documents": results
+        }
+
+    except Exception as e:
+        logger.error(f"Error listing documents: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while listing documents: {str(e)}"
+        )
