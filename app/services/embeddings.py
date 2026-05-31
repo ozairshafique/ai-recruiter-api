@@ -92,7 +92,7 @@ def load_faiss_index(index_path: str = None, embeddings: CohereEmbeddings = None
         raise
 
 # ── Check FAISS Index ────────────────
-def check_faiss_index(index_path: str) -> bool:
+def check_faiss_index(index_path: str = None) -> bool:
     """ Check if a FAISS index exists at the specified path and return True if it exists, otherwise False
     """
     index_path = index_path or settings.faiss_index_path
