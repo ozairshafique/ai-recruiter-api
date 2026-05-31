@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.services.rag_pipeline import run_ingest_pipeline, run_query_pipeline
-from schemas.schemas import (
+from app.schemas.schemas import (
     UploadResponse,
     QueryRequest,
     QueryResponse,
