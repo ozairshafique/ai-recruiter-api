@@ -127,4 +127,38 @@ def test_query_empty():
     )
     assert resposne.status_code == 422
 
+# ── List Documents Tests ────────────────
+def test_list_no_documents():
+    """ Test the /documents endpoint to ensure it returns the list of uploaded documents """
+    with patch("app.api.routes.check_faiss_index", return_value=False):
+        response = client.get("/api/v1/documents")
+        assert response.status_code == 404
+        assert "No documents found" in response.json()["detail"]
+
+def test_list_documents_success():
+    """ Test the /documents endpoint to ensure it returns the list of uploaded documents """
+
+    mock_docs = MagicMock()
+    mock_docs.metadata = {
+        "document_id": "test-doc-1234",
+        "file_name": "test_resume.pdf",
+        "page": 1,
+        "chunk_index": 0,
+        "total_chunks": 10
+    }
+    mock_docstore = MagicMock()
+    mock_docstore._dict = {"chunk-1": mock_docs}
+
+    mock_store = MagicMock()
+    mock_store.docstore = mock_docstore
+
+    with patch("app.api.routes.check_faiss_index", return_value=True), \
+         patch("app.api.routes.load_faiss_index", return_value=mock_store):
+        response = client.get("/api/v1/documents")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["total"] == 1
+        assert len(data["documents"]) == 1
+        assert data["documents"][0]["file_name"] == "test_resume.pdf"
 
