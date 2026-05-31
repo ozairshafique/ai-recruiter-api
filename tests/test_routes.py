@@ -119,3 +119,12 @@ def test_query_too_short():
     )
     assert response.status_code == 422
 
+def test_query_empty():
+    """ Test the /query endpoint with an empty question to ensure it returns a 422 error """
+    resposne = client.post(
+        "/api/v1/query",
+        json={"question": "", "top_k": 5}
+    )
+    assert resposne.status_code == 422
+
+
