@@ -56,7 +56,7 @@ def run_ingest_pipeline(file_path: str, file_name: str, document_id: str = None)
         raise
 
 # ── Query Pipeline ────────────────
-def run_query_pipeline(query: str, vectorstore: Optional[FAISS], top_k: int = None, system_prompt: str = None) -> dict:
+def run_query_pipeline(query: str, vectorstore: Optional[FAISS] = None, top_k: int = None, system_prompt: str = None) -> dict:
     """ Run the query pipeline to perform similarity search and generate answer
     """
 
