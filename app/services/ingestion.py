@@ -2,8 +2,8 @@ from pathlib import Path
 import uuid
 from typing import List
 import time
-from core.config import get_settings
-from core.logging import get_logger
+from app.core.config import get_settings
+from app.core.logging import get_logger
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
