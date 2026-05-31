@@ -82,3 +82,40 @@ def test_upload_file_success(mock_ingest_results):
     assert data["filename"] == "test_cv.pdf"
     assert data["chunks"] == 10
     assert "document_id" in data
+
+
+# ── Query Endpoint Tests ───────────
+def test_query_no_index():
+    """ Test the /query endpoint when no FAISS index is present to ensure it returns a 500 error """
+    with patch("app.api.routes.check_faiss_index", return_value=False):
+        response = client.post(
+            "/api/v1/query",
+            json={"question": "What are the candidate's Python skills?", "top_k": 5}
+            )
+        assert response.status_code == 404
+        assert "No documents found" in response.json()["detail"]
+
+def test_query_success(mock_query_results):
+    """ Test successful query with mock FAISS index and LLM response """
+    with patch("app.api.routes.check_faiss_index", return_value=True), \
+         patch("app.api.routes.run_query_pipeline", return_value=mock_query_results):
+        response = client.post(
+            "/api/v1/query",
+            json={"question": "What are the candidate's Python skills?", "top_k": 5}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "model" in data
+        assert "sources" in data
+        assert "latency" in data
+        assert data["answer"] != ""
+        assert data["status"] == "success"
+
+def test_query_too_short():
+    """ Test the /query endpoint with a question that is too short to ensure it returns a 422 error """
+    response = client.post(
+        "/api/v1/query",
+        json={"question": "Hi?", "top_k": 5}
+    )
+    assert response.status_code == 422
+
