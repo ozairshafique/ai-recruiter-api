@@ -150,3 +150,25 @@ async def query_documents(request: QueryRequest) -> QueryResponse:
             status_code=500,
             detail=f"An error occurred while processing the query: {str(e)}"
         )
+
+# ── Health Check Endpoint ───────────
+@router.get(
+    "/health",
+    response_model=HealthCheck,
+    summary="Health Check",
+    description="Check the health status of the API",
+    tags=["Health"],
+)
+async def health_check() -> HealthCheck:
+    """ Health check endpoint to verify API status and dependencies """
+
+    logger.info("Received health check request")
+
+    return HealthCheck(
+        status=ResponseStatus.SUCCESS,
+        app=settings.app_name,
+        version=settings.app_version,
+        embeddings=settings.cohere_model,
+        model=settings.fgroq_model,
+        faiss_index=check_faiss_index()
+    )
