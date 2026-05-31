@@ -82,7 +82,7 @@ class SourceDocument(BaseModel):
     """ Schema for source documents returned in query responses """
     content: str = Field(..., description="Relevant content from the source document")
     page: Optional[int] = Field(None, description="Page number in the pdf document")
-    score: Optional[float] = Field(None, ge=0.0, le=1.0, description="Relevance score from FAISS")
+    score: Optional[float] = Field(None, ge=0.0, description="Relevance score from FAISS")
     document_id: Optional[str] = Field(None, description="Source document ID")
 
 
