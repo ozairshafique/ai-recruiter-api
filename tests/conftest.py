@@ -36,6 +36,7 @@ def mock_pdf_file(tmp_path):
 
 
 # ── Mock FAISS Index ─────────────────
+@pytest.fixture
 def mock_faiss_index():
     """ Fixture to create a mock FAISS index for testing """
     mock = MagicMock()
@@ -53,6 +54,7 @@ def mock_faiss_index():
     return mock
 
 # ── Mock LLM Response ─────────────────
+@pytest.fixture
 def mock_llm_response():
     """ Fixture to create a mock LangChain LLM for testing """
     mock = MagicMock()
@@ -67,7 +69,7 @@ def mock_ingest_results():
        "document_id": "test-doc-1234",
        "file_name": "test_resume.pdf",
        "chunks": 10,
-       "pages": 2,
+       "page": 1,
        "latency_ms": 250.5,
        "documents": []
     }
@@ -85,7 +87,7 @@ def mock_query_results():
                 "chunk_index": 0,
                 "document_id": "test-doc-1234",
                 "file_name": "test_resume.pdf",
-                "pages": 2,
+                "page": 1,
             }
         ],
         "model": "llama-3.3-70b-verstaile",
