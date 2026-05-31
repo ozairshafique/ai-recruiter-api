@@ -35,7 +35,7 @@ def similarity_search_with_score(query: str, vectorstore: FAISS, top_k: int = No
     top_k = top_k or settings.top_k
     try:
         logger.info(f"Performing similarity search with scores | Query: {query[:50]} | Top K: {top_k}")
-        results = vectorstore.similarity_search_with_scores(query=query, k=top_k)
+        results = vectorstore.similarity_search_with_score(query=query, k=top_k)
         logger.info(f"Similarity search with scores completed | Results: {len(results)}")
         return results
 
