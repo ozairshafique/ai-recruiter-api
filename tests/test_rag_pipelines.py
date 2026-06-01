@@ -219,3 +219,28 @@ def test_generate_answer(mock_llm_response):
                     system_prompt=None)
 
         assert isinstance(answer, str)
+
+# ── RAG Tests ──────────────
+def test_run_ingest_pipeline(mock_ingest_results, tmp_path):
+    """ Test run_ingest_pipeline with sample file path and name """
+    pdf_files = tmp_path/"tests.pdf"
+    pdf_files.write_bytes(b"%PDF-1.4\n PDF content for testing") # Write minimal PDF content to create a valid PDF file
+    with patch("app.services.rag_pipeline.ingest_file", return_value={
+        "document_id": "tests-1234",
+        "file_name": "tests.pdf",
+        "chunks": 10,
+        "pages": 2,
+        "latency_ms": 250.5,
+        "documents": [],
+    }),patch("app.services.rag_pipeline.check_faiss_index",return_value=False),patch("app.services.rag_pipeline.embed_and_store", return_value={"vector_store": MagicMock()}):
+        results = run_ingest_pipeline(
+            file_path=str(pdf_files),
+            file_name="tests.pdf",
+            document_id="tests-1234"
+        )
+
+        assert results["document_id"] == "tests-1234"
+        assert results["chunks"] == 10
+        assert results["pages"] == 2
+        assert isinstance(results["latency_ms"], float)
+
