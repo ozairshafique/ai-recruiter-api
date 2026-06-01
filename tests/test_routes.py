@@ -6,6 +6,13 @@ from app.main import app
 
 client = TestClient(app)
 
+
+# ── Ingestion Tests ───────────────────
+def test_client_fixture(test_client):
+    """ Test client fixture to ensure it creates a TestClient instance """
+    resposne = test_client.get("/")
+    assert resposne.status_code == 200
+
 # ── Health Check Tests ─────────────
 def test_health_check():
     """ Test the /health endpoint to ensure it returns the expected status"""
