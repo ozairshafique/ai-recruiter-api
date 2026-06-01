@@ -244,3 +244,18 @@ def test_run_ingest_pipeline(mock_ingest_results, tmp_path):
         assert results["pages"] == 2
         assert isinstance(results["latency_ms"], float)
 
+def test_run_query_pipeline(mock_query_results):
+    """ Test run query pipelines return answers"""
+    with patch(
+        "app.services.rag_pipeline.retrieve", return_value=mock_query_results["sources"]
+        ),patch("app.services.rag_pipeline.llm_generate", return_value=mock_query_results):
+        results = run_query_pipeline(
+            query="What is on page 1?",
+            top_k=5
+        )
+        assert "answer" in results
+        assert "model" in results
+        assert "sources" in results
+        assert "latency_ms" in results
+
+
