@@ -180,6 +180,14 @@ def test_similarity_search(mock_faiss_index):
     assert len(results) == 1
 
 # ── LLM Service Tests ────────────────
+
+def test_initialize_llm():
+    """ Test initialize_llm with sample settings """
+    with patch("app.services.llm_service.ChatGroq") as mock_chat_groq:
+        mock_chat_groq.return_value = MagicMock()
+        llm = initialize_llm()
+        assert llm is not None
+
 def test_format_context():
     """ Test format_context with sample documents """
     results = format_context([])
