@@ -1,0 +1,32 @@
+version: "3.9"
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-recruiter-application
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - logs_data:/app/logs
+      - faiss_data:/app/faiss_index
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - ai-recruiter-networks
+
+networks:
+  ai-recruiter-networks:
+    driver: bridge
+
+volumes:
+  faiss_data:
+  logs_data:
