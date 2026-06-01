@@ -184,3 +184,38 @@ def test_format_context():
     """ Test format_context with sample documents """
     results = format_context([])
     assert results == "No relevant documents found."
+
+def test_format_context_with_docs():
+    """ Test format_context with sample documents """
+    docs = [
+       {
+           "content": "This is the content of page 1",
+           "score": 0.25,
+           "document_id": "test-doc-1234",
+           "file_name": "tests.pdf",
+           "page": 1
+       }
+   ]
+    results = format_context(docs)
+    assert "This is the content of page 1" in results
+    assert "tests.pdf" in results
+
+def test_generate_answer(mock_llm_response):
+    """ Test generate_answer with sample question and context """
+
+    mock_llm = MagicMock()
+    mock_response = MagicMock()
+    mock_response.content = "content of page 1 is about programmings"
+    mock_llm.invoke.return_value = mock_response
+    with patch("app.services.llm_service.initialize_llm", return_value=mock_llm):
+        with patch("app.services.llm_service.ChatGroq"):
+            mock_chain = MagicMock()
+            mock_chain.invoke = MagicMock(return_value=mock_response)
+            with patch("app.services.llm_service.ChatPromptTemplate.from_messages", return_value=MagicMock(__or__=MagicMock(return_value=mock_chain))):
+                answer = generate_answer(
+                    question="What is on page 1?",
+                    context="This is the content of page 1",
+                    llm=None,
+                    system_prompt=None)
+
+        assert isinstance(answer, str)
