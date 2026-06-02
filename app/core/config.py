@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     """ Settings for the application, loaded from environment variables or .env file.
     """
 
-    app_name: str = "AI Recruiter API"
+    app_name: str = "AI-Recruiter API"
     api_version: str = "1.0.0"
     debug: bool = False
 
