@@ -96,7 +96,8 @@ def check_faiss_index(index_path: str = None) -> bool:
     """ Check if a FAISS index exists at the specified path and return True if it exists, otherwise False
     """
     index_path = index_path or settings.faiss_index_path
-    exists = Path(index_path).exists()
+    faiss_file = Path(index_path) / "index.faiss"
+    exists = faiss_file.exists()
     logger.info(f"Checking FAISS index at {index_path} | Exists: {exists}")
     return exists
 
