@@ -45,3 +45,36 @@ jobs:
           pytest tests/ -v \
             --ignore=tests/evaluation \
             -p no:warnings
+
+  docker:
+    name: Build and Push Docker Image
+    needs: tests
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t ai-recruiter-api .
+
+      - name: Test Docker image
+        run: |
+          docker run -d \
+            --name test-container \
+            -p 8000:8000 \
+            -e GROQ_API_KEY=${{ secrets.GROQ_API_KEY }} \
+            -e LANGCHAIN_API_KEY=${{ secrets.LANGCHAIN_API_KEY }} \
+            -e COHERE_API_KEY=${{ secrets.COHERE_API_KEY }} \
+            -e LANGCHAIN_TRACING_V2="false" \
+            -e LANGCHAIN_PROJECT="AI-Recruiter-API" \
+            -e LANGCHAIN_ENDPOINT="https://api.smith.langchain.com" \
+            -e FAISS_INDEX_PATH="./test_faiss_index" \
+            -e CHUNK_SIZE="500" \
+            -e CHUNK_OVERLAP="50" \
+            -e TOP_K="5" \
+           ai-recruiter-api
+           sleep 10
+           curl -f http://localhost:8000/api/v1/health
+           docker stop test-container
