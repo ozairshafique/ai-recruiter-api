@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   api:
     build:
@@ -11,8 +10,7 @@ services:
       - .env
     volumes:
       - ./data:/app/data
-      - logs_data:/app/logs
-      - faiss_data:/app/faiss_index
+      - ./faiss_index:/app/faiss_index
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 30s
@@ -21,12 +19,11 @@ services:
       start_period: 10s
     restart: unless-stopped
     networks:
-      - ai-recruiter-networks
+      - ai-recruiter-network
 
 networks:
-  ai-recruiter-networks:
+  ai-recruiter-network:
     driver: bridge
 
 volumes:
   faiss_data:
-  logs_data:
