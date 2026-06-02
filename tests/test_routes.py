@@ -93,7 +93,7 @@ def test_upload_file_success(mock_ingest_results):
 
 # ── Query Endpoint Tests ───────────
 def test_query_no_index():
-    """ Test the /query endpoint when no FAISS index is present to ensure it returns a 500 error """
+    """ Test the /query endpoint when no FAISS index is presents to ensure it returns a 404 error """
     with patch("app.api.routes.check_faiss_index", return_value=False):
         response = client.post(
             "/api/v1/query",
@@ -128,11 +128,11 @@ def test_query_too_short():
 
 def test_query_empty():
     """ Test the /query endpoint with an empty question to ensure it returns a 422 error """
-    resposne = client.post(
+    response = client.post(
         "/api/v1/query",
         json={"question": "", "top_k": 5}
     )
-    assert resposne.status_code == 422
+    assert response.status_code == 422
 
 # ── List Documents Tests ────────────────
 def test_list_no_documents():
