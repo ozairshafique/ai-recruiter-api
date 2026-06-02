@@ -68,6 +68,8 @@ mlruns/
 # AWS
 .aws/
 
+# DeepEval
+.deepeval
 # Temporary files
 tmp/
 temp/
