@@ -10,14 +10,14 @@ client = TestClient(app)
 # ── Ingestion Tests ───────────────────
 def test_client_fixture(test_client):
     """ Test client fixture to ensure it creates a TestClient instance """
-    resposne = test_client.get("/")
-    assert resposne.status_code == 200
+    response = test_client.get("/")
+    assert response.status_code == 200
 
 # ── Health Check Tests ─────────────
 def test_health_check():
     """ Test the /health endpoint to ensure it returns the expected status"""
     with patch("app.api.routes.check_faiss_index", return_value=False):
-        response = client.get("api/v1/health")
+        response = client.get("/api/v1/health")
 
         assert response.status_code == 200
         data  = response.json()
