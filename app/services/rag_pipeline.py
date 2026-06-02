@@ -1,5 +1,6 @@
 from typing import List, Optional
 import time
+from pathlib import Path
 from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
 from app.services.ingestion import ingest_file
@@ -30,7 +31,9 @@ def run_ingest_pipeline(file_path: str, file_name: str, document_id: str = None)
         document_id = result["document_id"]
         chunks = result["documents"]
 
-        if check_faiss_index():
+        faiss_file = Path(settings.faiss_index_path) / "index.faiss"
+
+        if faiss_file.exists():
             logger.info("FAISS index exists, loading index")
             vector_store = load_faiss_index()
             vector_store = add_documents_to_index(vector_store, chunks)
