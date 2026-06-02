@@ -1,0 +1,47 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  tests:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          LANGCHAIN_API_KEY: ${{ secrets.LANGCHAIN_API_KEY }}
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+          LANGCHAIN_TRACING_V2: "false"
+          LANGCHAIN_PROJECT: "AI-Recruiter-API"
+          LANGCHAIN_ENDPOINT: "https://api.smith.langchain.com"
+          FAISS_INDEX_PATH: "./test_faiss_index"
+          CHUNK_SIZE: "500"
+          CHUNK_OVERLAP: "50"
+          TOP_K: "5"
+        run: |
+          pytest tests/ -v \
+            --ignore=tests/evaluation \
+            -p no:warnings
