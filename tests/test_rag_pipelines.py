@@ -52,7 +52,7 @@ def test_ingest_file_wrong_type(tmp_path):
     with pytest.raises(ValueError):
         validate_file(str(txt_path))
 
-def test_validate_file_emptY(tmp_path):
+def test_validate_file_empty(tmp_path):
     """ Test validate_file with empty PDF file """
     empty_pdf_path = tmp_path / "empty.pdf"
     empty_pdf_path.write_bytes(b"") # Write minimal PDF content to create a valid PDF file
@@ -66,7 +66,7 @@ def test_validate_file_valid(tmp_path):
     valid_pdf_path.write_bytes(b"%PDF-1.4\n%Valid PDF content for testing\n%%EOF") # Write minimal PDF content to create a valid PDF file
     validate_file(str(valid_pdf_path))
 
-def test_split_docments():
+def test_split_documents():
     """ Test split_documents with sample documents """
 
     docs = [
