@@ -107,7 +107,7 @@ def add_documents_to_index(vector_store: FAISS, documents: List[Document]) -> FA
     try:
         logger.info(f"Adding {len(documents)} documents to FAISS index")
         vector_store.add_documents(documents)
-        logger.info(f"Documents added to FAISS index successfully | Total Documents: {len(vector_store)}")
+        logger.info(f"Documents added to FAISS index successfully | Total Documents: {len(documents)}")
         return vector_store
     except Exception as e:
         logger.error(f"Error adding documents to FAISS index: {e}")
