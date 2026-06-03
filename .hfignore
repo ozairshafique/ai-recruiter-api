@@ -1,0 +1,7 @@
+images/
+frontend/
+docs/
+*.png
+*.jpg
+*.svg
+*.gif
