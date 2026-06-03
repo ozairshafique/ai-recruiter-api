@@ -93,6 +93,18 @@ jobs:
           lfs: true
           fetch-depth: 0
 
+      - name: Install Git LFS
+        run: |
+          sudo apt-get install -y git-lfs
+          git lfs install
+
+      - name: Set up Git LFS
+        run: |
+          git lfs track "*.jpg"
+          git lfs track "*.png"
+          git lfs track "*.svg"
+          git add .gitattributes || true
+
       - name: Push to Hugging Face Spaces
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
