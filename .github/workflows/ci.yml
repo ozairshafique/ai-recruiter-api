@@ -63,7 +63,7 @@ jobs:
         run: |
           docker run -d \
             --name test-container \
-            -p 7860:7860 \
+            --network host \
             -e PORT=7860 \
             -e GROQ_API_KEY=${{ secrets.GROQ_API_KEY }} \
             -e LANGCHAIN_API_KEY=${{ secrets.LANGCHAIN_API_KEY }} \
@@ -80,6 +80,7 @@ jobs:
            docker logs test-container
            curl -f http://localhost:7860/api/v1/health
            docker stop test-container
+
   deploy:
     name: Deploy to Hugging Face Spaces
     needs: [docker, tests]
