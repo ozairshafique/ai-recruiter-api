@@ -98,6 +98,7 @@ jobs:
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "ci@github.com"
+          git config --global init.defaultBranch main
 
           # Copy only API files — no images, no frontend
           mkdir -p /tmp/hf-deploy
@@ -114,6 +115,7 @@ jobs:
           # Create fresh git repo for HuggingFace
           cd /tmp/hf-deploy
           git init
+          git checkout -b main
           git add .
           git commit -m "deploy: $(date +'%Y-%m-%d %H:%M:%S')"
 
