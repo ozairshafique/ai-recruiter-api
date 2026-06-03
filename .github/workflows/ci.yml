@@ -111,5 +111,8 @@ jobs:
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "ci@github.com"
+          git rm -r --cached images || true
+          git rm -r --cached frontend || true
+          git commit -m"ci: Update LFS tracking for images and frontend" || true
           git remote add hf https://ozair1112:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/ozair1112/ai-recruiter-api
           git push hf main --force
