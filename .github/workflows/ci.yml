@@ -74,11 +74,11 @@ jobs:
             -e CHUNK_SIZE="500" \
             -e CHUNK_OVERLAP="50" \
             -e TOP_K="5" \
-           ai-recruiter-api
-           sleep 30
-           docker logs test-container
-           curl -f http://localhost:8000/api/v1/health
-           docker stop test-container
+            ai-recruiter-api
+          sleep 30
+          docker logs test-container
+          curl -f http://localhost:8000/api/v1/health
+          docker stop test-container
 
   deploy:
     name: Deploy to Hugging Face Spaces
@@ -90,20 +90,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          lfs: true
           fetch-depth: 0
-
-      - name: Install Git LFS
-        run: |
-          sudo apt-get install -y git-lfs
-          git lfs install
-
-      - name: Set up Git LFS
-        run: |
-          git lfs track "*.jpg"
-          git lfs track "*.png"
-          git lfs track "*.svg"
-          git add .gitattributes || true
 
       - name: Push to Hugging Face Spaces
         env:
@@ -111,8 +98,25 @@ jobs:
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "ci@github.com"
-          git rm -r --cached images || true
-          git rm -r --cached frontend || true
-          git commit -m"ci: Update LFS tracking for images and frontend" || true
+
+          # Copy only API files — no images, no frontend
+          mkdir -p /tmp/hf-deploy
+          rsync -av \
+            --exclude='.git/' \
+            --exclude='images/' \
+            --exclude='frontend/' \
+            --exclude='*.png' \
+            --exclude='*.jpg' \
+            --exclude='*.svg' \
+            --exclude='*.gif' \
+            . /tmp/hf-deploy/
+
+          # Create fresh git repo for HuggingFace
+          cd /tmp/hf-deploy
+          git init
+          git add .
+          git commit -m "deploy: $(date +'%Y-%m-%d %H:%M:%S')"
+
+          # Push clean repo to HuggingFace
           git remote add hf https://ozair1112:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/ozair1112/ai-recruiter-api
           git push hf main --force
