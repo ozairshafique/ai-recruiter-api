@@ -63,7 +63,7 @@ jobs:
         run: |
           docker run -d \
             --name test-container \
-            --network host \
+            -p 7860:7860 \
             -e PORT=7860 \
             -e GROQ_API_KEY=${{ secrets.GROQ_API_KEY }} \
             -e LANGCHAIN_API_KEY=${{ secrets.LANGCHAIN_API_KEY }} \
@@ -78,6 +78,7 @@ jobs:
            ai-recruiter-api
            sleep 30
            docker logs test-container
+           docker inspect test-container --format='{{range.NetworkSettings.Ports}}{{.}}{{end}}'
            curl -f http://localhost:7860/api/v1/health
            docker stop test-container
 
