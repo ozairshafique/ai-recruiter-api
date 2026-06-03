@@ -76,7 +76,8 @@ jobs:
             -e CHUNK_OVERLAP="50" \
             -e TOP_K="5" \
            ai-recruiter-api
-           sleep 10
+           sleep 30
+           docker logs test-container
            curl -f http://localhost:7860/api/v1/health
            docker stop test-container
   deploy:
