@@ -89,6 +89,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Push to Hugging Face Spaces
         env:
@@ -96,5 +98,6 @@ jobs:
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "ci@github.com"
+          git lfs uninstall
           git remote add hf https://ozair1112:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/ozair1112/ai-recruiter-api
           git push hf main --force
