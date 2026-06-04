@@ -84,7 +84,7 @@ jobs:
     name: Build and Validate Docker Image
     needs: tests
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.message,'deploy')
 
     steps:
       - name: Checkout code
@@ -158,7 +158,7 @@ jobs:
     name: Deploy to HuggingFace Spaces
     needs: [tests, docker]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.message,'deploy')
 
     steps:
       - name: Checkout code
