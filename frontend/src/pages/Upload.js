@@ -107,8 +107,25 @@ export default function Upload() {
           style={{ display: "none" }}
           onChange={(e) => handleFile(e.target.files[0])}
         />
-        <div style={{ fontSize: 36, marginBottom: 12 }}>
-          {file ? "📄" : "⬆️"}
+        <div style={{ marginBottom: 12 }}>
+          {file ? (
+            <span style={{ fontSize: 36 }}>📄</span>
+          ) : (
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--blue)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          )}
         </div>
         {file ? (
           <>
