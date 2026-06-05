@@ -386,9 +386,9 @@ export default function Query() {
                           fontFamily: "var(--mono)",
                         }}
                       >
-                        {s.document_id
-                          ? `${String(s.document_id).slice(0, 18)}...`
-                          : `Source ${i + 1}`}
+                        {s.file_name ||
+                          s.document_id.slice(0, 18) ||
+                          `Source ${i + 1}`}
                       </span>
                       {s.page !== undefined && (
                         <span
@@ -447,7 +447,7 @@ export default function Query() {
       )}
 
       {/* Recent query history */}
-      {history.length > 1 && (
+      {history.length > 0 && (
         <div style={{ marginTop: 32 }}>
           <p
             style={{
