@@ -80,7 +80,7 @@ def load_faiss_index(index_path: str = None, embeddings: CohereEmbeddings = None
         if not Path(index_path).exists():
             raise FileNotFoundError(f"FAISS index not found at {index_path}")
         logger.info(f"Loading FAISS index from {index_path}")
-        vector_store = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
+        vector_store = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True, distance_strategy="COSINE")
         logger.info(f"FAISS index loaded successfully from {index_path}")
         return vector_store
 
