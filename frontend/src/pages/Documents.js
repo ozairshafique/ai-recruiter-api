@@ -299,7 +299,7 @@ export default function Documents() {
             },
             {
               label: "Total Chunks",
-              value: docs.reduce((a, d) => a + (d.chunks || 0), 0) || "—",
+              value: docs.reduce((a, d) => a + (d.total_chunks || 0), 0) || "—",
               color: "var(--purple)",
               bg: "var(--purple-light)",
             },
