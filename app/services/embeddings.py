@@ -43,7 +43,7 @@ def create_faiss_index(documents: List[Document], embeddings: CohereEmbeddings =
 
     try:
         logger.info(f"Creating FAISS index for {len(documents)} documents")
-        vector_store = FAISS.from_documents(documents=documents, embedding=embeddings)
+        vector_store = FAISS.from_documents(documents=documents, embedding=embeddings,distance_strategy="COSINE")
 
         latency = round((time.time() - start_time) *1000, 2)
         logger.info(f"FAISS index created successfully | Documents: {len(documents)} | Latency: {latency} ms")
