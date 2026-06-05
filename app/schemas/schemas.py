@@ -84,6 +84,7 @@ class SourceDocument(BaseModel):
     page: Optional[int] = Field(None, description="Page number in the pdf document")
     score: Optional[float] = Field(None, ge=0.0, description="Relevance score from FAISS")
     document_id: Optional[str] = Field(None, description="Source document ID")
+    file_name: Optional[str] = Field(None, description="Original file name of the source document")
 
 
 class QueryResponse(BaseModel):
