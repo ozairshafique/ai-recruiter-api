@@ -127,7 +127,8 @@ async def query_documents(request: QueryRequest) -> QueryResponse:
                 content = doc.get("content", ""),
                 page = doc.get("page"),
                 score = doc.get("score"),
-                document_id = doc.get("document_id")
+                document_id = doc.get("document_id"),
+                file_name = doc.get("file_name")
             )
             for doc in result['sources']
         ]
