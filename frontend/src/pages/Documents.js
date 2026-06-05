@@ -206,12 +206,8 @@ export default function Documents() {
             </span>
           </div>
           {docs.map((doc, i) => {
-            const name =
-              doc.filename ||
-              doc.name ||
-              doc.document_id ||
-              `Document ${i + 1}`;
-            const chunks = doc.chunks || doc.chunk_count || "—";
+            const name = doc.file_name || doc.name || `Document ${i + 1}`;
+            const chunks = doc.total_chunks || doc.chunk || "—";
             const docId = doc.document_id || doc.id || "—";
             return (
               <div
