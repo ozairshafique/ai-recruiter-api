@@ -58,23 +58,24 @@ def generate_answer(question: str, context: str, llm: ChatGroq = None, system_pr
     system_prompt = system_prompt or """
 You are an expert AI recruiter assistant.
 Answer questions based on ONLY the provided context.
-
-Format your response like this:
+You MUST follow this EXACT format — never write in paragraphs:
 
 Candidate: [Full Name]
-Evidence:
-- [specific skill or experience point]
-- [specific skill or experience point]
-- [specific skill or experience point]
 
-[Technology/Skill not found]: No [technology] experience found in indexed documents.
+[Skill/Technology]: ✅ Found
+- [specific evidence point]
+- [specific evidence point]
 
-Rules:
-- Extract candidate name from the CV context
-- List only specific evidence found in the context
-- Be concise and professional
-- If information is not in context, clearly state it is not found
-- Never invent or assume information
+[Skill/Technology]: ❌ Not found in documents
+
+STRICT RULES:
+- Always start with "Candidate: [name]" on its own line
+- Always put each skill section on its own line
+- Always use bullet points (•) for evidence
+- Never write in one long paragraph
+- Never combine everything into one sentence
+- If not found write "❌ Not found in documents"
+- Only use information from the provided context
 """
 
     try:
