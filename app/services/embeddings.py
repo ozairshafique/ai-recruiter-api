@@ -1,5 +1,7 @@
 import time
 import os
+import numpy as np
+import faiss
 from pathlib import Path
 from typing import List
 from app.core.config import get_settings
@@ -7,6 +9,7 @@ from app.core.logging import get_logger
 from langchain_core.documents import Document
 from langchain_cohere import CohereEmbeddings
 from langchain_community.vectorstores import FAISS
+from langchain_community.docstore.in_memory import InMemoryDocstore
 
 
 logger = get_logger(__name__)
@@ -43,7 +46,30 @@ def create_faiss_index(documents: List[Document], embeddings: CohereEmbeddings =
 
     try:
         logger.info(f"Creating FAISS index for {len(documents)} documents")
-        vector_store = FAISS.from_documents(documents=documents, embedding=embeddings,distance_strategy="COSINE")
+
+        texts = [doc.page_content for doc in documents]
+        metadatas = [doc.metadata for doc in documents]
+
+        vectors = embeddings.embed_documents(texts)
+        vectors_np = np.array(vectors, dtype=np.float32)
+
+        # Normalize vectors for cosine similarity
+        faiss.normalize_L2(vectors_np)
+
+        # Create FAISS index with cosine similarity
+        dimension = vectors_np.shape[1]
+        index = faiss.IndexFlatIP(dimension)  # Inner Product for cosine similarity
+        index.add(vectors_np)
+
+        # Build Langchain wrapper around FAISS index
+        docs_store = InMemoryDocstore()
+        indexed_to_docs = {}
+        for i, (texts, metadata) in enumerate(zip(texts, metadatas)):
+            docs_id = str(i)
+            indexed_to_docs[i] = docs_id
+            docs_store.add({docs_id: Document(page_content=texts, metadata=metadata)})
+
+            vector_store = FAISS.from_documents(embeddings=embeddings, index=index, docstore=docs_store, indexed_to_docs=indexed_to_docs)
 
         latency = round((time.time() - start_time) *1000, 2)
         logger.info(f"FAISS index created successfully | Documents: {len(documents)} | Latency: {latency} ms")
