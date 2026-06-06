@@ -387,7 +387,8 @@ export default function Query() {
                         }}
                       >
                         {s.file_name ||
-                          s.document_id.slice(0, 18) ||
+                          s.document_id ||
+                          `${String(s.document_id).slice(0, 18)}...` ||
                           `Source ${i + 1}`}
                       </span>
                       {s.page !== undefined && (
@@ -403,21 +404,6 @@ export default function Query() {
                           }}
                         >
                           page {s.page}
-                        </span>
-                      )}
-                      {s.score !== undefined && (
-                        <span
-                          style={{
-                            background: "var(--green-light)",
-                            color: "var(--green)",
-                            border: "1px solid #b7ddc8",
-                            padding: "1px 7px",
-                            borderRadius: 10,
-                            fontSize: 10,
-                            fontWeight: 500,
-                          }}
-                        >
-                          score {Number(s.score).toFixed(3)}
                         </span>
                       )}
                     </div>
