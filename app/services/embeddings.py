@@ -57,9 +57,9 @@ def create_faiss_index(documents: List[Document], embeddings: CohereEmbeddings =
         faiss.normalize_L2(vectors_np)
 
         # Create FAISS index with cosine similarity
-        dimension = vectors_np.shape[1]
+        dimension = vectors_np.shape[1] # Get the dimensionality of the embeddings
         index = faiss.IndexFlatIP(dimension)  # Inner Product for cosine similarity
-        index.add(vectors_np)
+        index.add(vectors_np) # Add vectors to the index
 
         # Build Langchain wrapper around FAISS index
         docs_store = InMemoryDocstore()

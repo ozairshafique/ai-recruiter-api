@@ -134,10 +134,16 @@ def test_create_faiss_index(mock_faiss_index):
             }
         )
     ]
-    with patch("app.services.embeddings.FAISS.from_documents", return_value=mock_faiss_index):
-        with patch("app.services.embeddings.get_embeddings", return_value=MagicMock()):
-            results = create_faiss_index(docs)
-            assert results is not None
+
+    mock_embeddings = MagicMock()
+    mock_embeddings.embed_documents.return_value = [[0.1, 0.2, 0.3, 0.4, 0.5]]
+
+    with patch("app.services.embeddings.FAISS.from_documents", return_value=mock_embeddings):
+        with patch("app.services.embeddings.faiss.normalize_L2"):
+            with patch("app.services.embeddings.faiss.IndexFlatIP") as mock_index:
+                mock_index.return_value = MagicMock()
+                results = create_faiss_index(docs, embeddings=mock_embeddings)
+                assert results is not None
 
 # ── Retriever Tests ────────────────────
 def test_format_retrieved_documents():
@@ -233,13 +239,26 @@ def test_run_ingest_pipeline(mock_ingest_results, tmp_path):
     """ Test run_ingest_pipeline with sample file path and name """
     pdf_files = tmp_path/"tests.pdf"
     pdf_files.write_bytes(b"%PDF-1.4\n PDF content for testing") # Write minimal PDF content to create a valid PDF file
+
+    mock_chucks = [(
+        Document(
+            page_content="This is the content of page 1",
+            metadata={
+                "page": 1,
+                "document_id": "tests-1234",
+                "file_name": "tests.pdf",
+                "chunk_index": 0,
+                "total_chunks": 10,
+            }
+        ))
+    ]
     with patch("app.services.rag_pipeline.ingest_file", return_value={
         "document_id": "tests-1234",
         "file_name": "tests.pdf",
         "chunks": 10,
         "pages": 2,
         "latency_ms": 250.5,
-        "documents": [],
+        "documents": mock_chucks,
     }),patch("app.services.rag_pipeline.check_faiss_index",return_value=False),patch("app.services.rag_pipeline.embed_and_store", return_value={"vector_store": MagicMock()}):
         results = run_ingest_pipeline(
             file_path=str(pdf_files),
