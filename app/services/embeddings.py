@@ -9,8 +9,7 @@ from app.core.logging import get_logger
 from langchain_core.documents import Document
 from langchain_cohere import CohereEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_community.docstore.in_memory import InMemoryDocstore
-
+from langchain_community.vectorstores.utils import DistanceStrategy
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -47,32 +46,10 @@ def create_faiss_index(documents: List[Document], embeddings: CohereEmbeddings =
     try:
         logger.info(f"Creating FAISS index for {len(documents)} documents")
 
-        texts = [doc.page_content for doc in documents]
-        metadatas = [doc.metadata for doc in documents]
-
-        vectors = embeddings.embed_documents(texts)
-        vectors_np = np.array(vectors, dtype=np.float32)
-
-        # Normalize vectors for cosine similarity
-        faiss.normalize_L2(vectors_np)
-
-        # Create FAISS index with cosine similarity
-        dimension = vectors_np.shape[1] # Get the dimensionality of the embeddings
-        index = faiss.IndexFlatIP(dimension)  # Inner Product for cosine similarity
-        index.add(vectors_np) # Add vectors to the index
-
-        # Build Langchain wrapper around FAISS index
-        docs_store = InMemoryDocstore()
-        indexed_to_docs = {}
-        for i, (texts, metadata) in enumerate(zip(texts, metadatas)):
-            docs_id = str(i)
-            indexed_to_docs[i] = docs_id
-            docs_store.add({docs_id: Document(page_content=texts, metadata=metadata)})
-
-            vector_store = FAISS.from_documents(embeddings=embeddings, index=index, docstore=docs_store, indexed_to_docs=indexed_to_docs)
-
-        latency = round((time.time() - start_time) *1000, 2)
-        logger.info(f"FAISS index created successfully | Documents: {len(documents)} | Latency: {latency} ms")
+        logger.info(f"Creating FAISS index for {len(documents)} documents")
+        vector_store = FAISS.from_documents(documents=documents, embedding=embeddings, normalize_L2=True, distance_strategy=DistanceStrategy.DOT_PRODUCT)
+        latency = round((time.time() - start_time) * 1000, 2)
+        logger.info(f"FAISS index created | Documents: {len(documents)} | Latency: {latency} ms")
         return vector_store
 
     except Exception as e:
@@ -106,7 +83,7 @@ def load_faiss_index(index_path: str = None, embeddings: CohereEmbeddings = None
         if not Path(index_path).exists():
             raise FileNotFoundError(f"FAISS index not found at {index_path}")
         logger.info(f"Loading FAISS index from {index_path}")
-        vector_store = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True, distance_strategy="COSINE")
+        vector_store = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True, distance_strategy=DistanceStrategy.DOT_PRODUCT)
         logger.info(f"FAISS index loaded successfully from {index_path}")
         return vector_store
 
@@ -133,32 +110,8 @@ def add_documents_to_index(vector_store: FAISS, documents: List[Document]) -> FA
     """
     try:
         logger.info(f"Adding {len(documents)} documents to FAISS index")
-        embeddings = get_embeddings()
-
-        # Extract texts and metadata from documents
-        texts = [doc.page_content for doc in documents]
-        metadatas = [doc.metadata for doc in documents]
-
-        # Get vectors for new documents
-        vectors = embeddings.embed_documents(texts)
-        vectors_np = np.array(vectors, dtype=np.float32)
-
-        faiss.normalize_L2(vectors_np)
-
-        # Get current size of the index to assign new IDs
-        curent_size = vector_store.index.ntotal
-
-        # Add new vectors to the index
-        vector_store.index.add(vectors_np)
-
-        for i, (text, metadata) in enumerate(zip(texts, metadatas)):
-            doc_id = str(curent_size + i) # Generate new document ID based on current index size
-            # Update the mapping of index to document ID in the vector store
-            vector_store.indexed_to_docs[curent_size + i] = doc_id
-            # Add the new document to the docstore with the generated document ID
-            vector_store.docstore.add({doc_id: Document (page_content=text, metadata=metadata)})
         vector_store.add_documents(documents)
-        logger.info(f"Documents added to FAISS index successfully | Total Documents: {len(documents)}")
+        logger.info(f"Documents added successfully | Total: {len(documents)}")
         return vector_store
     except Exception as e:
         logger.error(f"Error adding documents to FAISS index: {e}")
