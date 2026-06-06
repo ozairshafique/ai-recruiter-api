@@ -56,10 +56,25 @@ def generate_answer(question: str, context: str, llm: ChatGroq = None, system_pr
 
     llm = llm or initialize_llm()
     system_prompt = system_prompt or """
-    You are an AI expert assistant.
-    Answer questions based on ONLY the provided context.
-    If is not in the context, say 'I can not find revelant information'.
-    Be concise, professional and accurate.
+You are an expert AI recruiter assistant.
+Answer questions based on ONLY the provided context.
+
+Format your response like this:
+
+Candidate: [Full Name]
+Evidence:
+- [specific skill or experience point]
+- [specific skill or experience point]
+- [specific skill or experience point]
+
+[Technology/Skill not found]: No [technology] experience found in indexed documents.
+
+Rules:
+- Extract candidate name from the CV context
+- List only specific evidence found in the context
+- Be concise and professional
+- If information is not in context, clearly state it is not found
+- Never invent or assume information
 """
 
     try:
