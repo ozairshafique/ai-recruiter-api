@@ -231,3 +231,35 @@ async def list_documents() -> dict:
             status_code=500,
             detail=f"An error occurred while listing documents: {str(e)}"
         )
+
+# ── Reset Endpoint ──────────
+
+@router.delete(
+    "/reset",
+    summary="Reset the System",
+    description="Delete all indexed documents and reset the system",
+    tags=["Admin"],
+)
+async def reset_system() -> dict:
+    """ Endpoint to reset the system by deleting all indexed documents and clearing the FAISS index """
+    import shutil
+    try:
+        path = Path(settings.faiss_index_path)
+        if path.exists():
+            shutil.rmtree(path)
+            logger.info("FAISS index directory deleted successfully")
+            return {
+                "status": "success",
+                "message": "System reset successfully"
+            }
+        else:
+            return {
+                "status": "success",
+                "message": "No indexed documents found. System is already clean."
+            }
+    except Exception as e:
+        logger.error(f"Error resetting system: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while resetting the system: {str(e)}"
+        )
