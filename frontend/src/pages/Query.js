@@ -308,7 +308,12 @@ export default function Query() {
             </div>
             <div style={{ padding: 20 }}>
               <p
-                style={{ fontSize: 14, lineHeight: 1.7, color: "var(--text)" }}
+                style={{
+                  fontSize: 14,
+                  lineHeight: 1.7,
+                  color: "var(--text)",
+                  whiteSpace: "pre-wrap",
+                }}
               >
                 {result.answer}
               </p>
