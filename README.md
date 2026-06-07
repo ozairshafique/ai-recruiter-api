@@ -1,13 +1,3 @@
----
-title: AI Recruiter API
-emoji: 🤖
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-app_port: 7860
-pinned: true
----
-
 # 🤖 AI Recruiter API
 
 <div align="center">
@@ -18,6 +8,8 @@ pinned: true
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
 ![LangChain](https://img.shields.io/badge/LangChain-0.3-1C3C3C?logo=langchain&logoColor=white)
+![LangSmith](https://img.shields.io/badge/LangSmith-Observability-FF6B35?logo=langchain&logoColor=white)
+![DeepEval](https://img.shields.io/badge/DeepEval-Evaluation-6C5CE7?logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-F7DF1E?logoColor=black)
 ![HuggingFace](https://img.shields.io/badge/API-HuggingFace-FFD21E?logo=huggingface&logoColor=black)
 ![Vercel](https://img.shields.io/badge/Frontend-Vercel-000000?logo=vercel&logoColor=white)
@@ -37,7 +29,68 @@ pinned: true
 AI Recruiter API is a production-ready full-stack RAG system that lets recruiters upload candidate CVs and query them using natural language. It automatically extracts text from PDFs, generates multilingual embeddings with Cohere, stores semantic vectors in FAISS, and retrieves answers using LangChain + LLaMA 3.3 70B via Groq — all within a fully containerized, CI/CD-deployed pipeline with a React frontend.
 
 **Example:** _"Which candidate has the strongest Python and Machine Learning experience?"_
-→ Structured answer with source attribution, page references, similarity scores, and latency tracking.
+
+```
+Candidate: Sarah Chen
+
+Python: ✅ Found
+• Built production ML pipelines using Python achieving F1-Macro 0.852
+• Designed RAG pipeline using LangChain + FAISS + OpenAI for internal knowledge base querying
+
+Machine Learning: ✅ Found
+• Fine-tuned BERT for customer support ticket classification achieving 94% accuracy
+• Deployed models on AWS SageMaker handling 10k+ requests per minute
+
+Candidate: James Okafor
+
+Python: ✅ Found
+• Built LLM-powered document analysis system processing 50k documents daily
+• Developed credit risk scoring model using gradient boosting achieving F1-Macro 0.89
+
+Machine Learning: ✅ Found
+• Implemented RAG system for regulatory compliance querying reducing manual review time by 70%
+```
+
+---
+
+## Screenshots
+
+### Upload CV
+
+<div align="center">
+  <img src="images/uploadcvs.png" alt="Upload CV" width="100%"/>
+</div>
+
+### Query Candidates — Multi-CV Comparison
+
+<div align="center">
+  <img src="images/query_results.png" alt="Query Results" width="100%"/>
+</div>
+
+### Documents
+
+<div align="center">
+  <img src="images/documents.png" alt="Documents" width="100%"/>
+</div>
+
+### Analytics — DeepEval RAG Metrics
+
+<div align="center">
+  <img src="images/analytics.png" alt="Analytics" width="100%"/>
+</div>
+
+---
+
+## Business Value
+
+| Benefit                                     | Impact                            |
+| ------------------------------------------- | --------------------------------- |
+| Reduces manual CV screening                 | Hours → seconds per candidate     |
+| Semantic search across hundreds of CVs      | No keyword matching limitations   |
+| Multilingual CV support                     | Cohere multilingual embeddings    |
+| Explainable answers with source attribution | Recruiter can verify every answer |
+| Structured candidate comparison             | Side-by-side skill analysis       |
+| Fast retrieval                              | Sub-700ms end-to-end response     |
 
 ---
 
@@ -56,7 +109,7 @@ AI Recruiter API is a production-ready full-stack RAG system that lets recruiter
 
 LangSmith provides full LLMOps observability across both flows. DeepEval validates output quality with four RAG-specific metrics.
 
-> **Vector search:** FAISS uses **cosine similarity** on Cohere's normalized embeddings — captures semantic meaning regardless of document length. Euclidean distance is not used as it's less effective for NLP retrieval tasks.
+> **Vector search:** FAISS uses **L2 distance** on Cohere's multilingual embeddings — captures semantic meaning regardless of document length or language.
 
 ---
 
@@ -90,25 +143,27 @@ Stage 4 — Health Check             ← GET /api/v1/health must return 200
 Live on HuggingFace Spaces ✅
 ```
 
-Any stage failure stops the pipeline immediately and routes back to the developer with a clear error.
+> Deployment only triggers when commit message contains `deploy` — preventing accidental production pushes.
 
 ---
 
-## Tech Stack
+## Observability — LangSmith
 
-| Layer            | Technology                     |
-| ---------------- | ------------------------------ |
-| API framework    | FastAPI + Pydantic             |
-| Frontend         | React 18 + Axios               |
-| LLM              | LLaMA 3.3 70B via Groq         |
-| Embeddings       | Cohere embed-multilingual-v3.0 |
-| Vector store     | FAISS (cosine similarity)      |
-| RAG framework    | LangChain + LangGraph          |
-| Evaluation       | DeepEval                       |
-| Observability    | LangSmith                      |
-| Containerization | Docker + Docker Compose        |
-| CI/CD            | GitHub Actions                 |
-| Deployment       | HuggingFace Spaces + Vercel    |
+<div align="center">
+  <img src="images/langsmithsoverviews.png" alt="LangSmith Traces — AI Recruiter API" width="100%"/>
+</div>
+
+<br/>
+
+Full LLMOps observability via LangSmith — every RAG query and DeepEval evaluation traced with latency, token usage, and execution flow.
+
+| Trace Type         | What It Shows                               |
+| ------------------ | ------------------------------------------- |
+| `RunnableSequence` | Full RAG pipeline — retrieval + generation  |
+| `ChatGroq`         | LLM calls — prompts, responses, token usage |
+| Latency            | RAG pipeline: 0.29s — 0.67s                 |
+| Tokens             | Per call tracking — cost monitoring         |
+| Status             | All green ✅ — zero errors                  |
 
 ---
 
@@ -116,12 +171,13 @@ Any stage failure stops the pipeline immediately and routes back to the develope
 
 Evaluated with DeepEval — all metrics exceed the 0.7 threshold:
 
-| Metric               | Score | Threshold | Status  |
-| -------------------- | ----- | --------- | ------- |
-| Answer relevancy     | 0.94  | 0.7       | ✅ Pass |
-| Faithfulness         | 0.91  | 0.7       | ✅ Pass |
-| Contextual recall    | 0.89  | 0.7       | ✅ Pass |
-| Contextual precision | 0.92  | 0.7       | ✅ Pass |
+| Metric               | Score    | Threshold | Status  |
+| -------------------- | -------- | --------- | ------- |
+| Answer Relevancy     | 0.94     | 0.7       | ✅ Pass |
+| Faithfulness         | 0.91     | 0.7       | ✅ Pass |
+| Contextual Recall    | 0.89     | 0.7       | ✅ Pass |
+| Contextual Precision | 0.92     | 0.7       | ✅ Pass |
+| **Average**          | **0.92** | 0.7       | ✅ Pass |
 
 ```bash
 pytest tests/evaluation/test_rag_evaluation.py -s -v
@@ -129,15 +185,34 @@ pytest tests/evaluation/test_rag_evaluation.py -s -v
 
 ---
 
+## Tech Stack
+
+| Layer            | Technology                        |
+| ---------------- | --------------------------------- |
+| API framework    | FastAPI + Pydantic                |
+| Frontend         | React 18 + Axios                  |
+| LLM              | LLaMA 3.3 70B via Groq            |
+| Embeddings       | Cohere embed-multilingual-v3.0    |
+| Vector store     | FAISS (L2 distance)               |
+| RAG framework    | LangChain + LangGraph             |
+| Evaluation       | DeepEval (4 RAG metrics)          |
+| Observability    | LangSmith (full LLMOps)           |
+| Containerization | Docker + Docker Compose           |
+| CI/CD            | GitHub Actions (3-stage pipeline) |
+| Deployment       | HuggingFace Spaces + Vercel       |
+
+---
+
 ## API Endpoints
 
-| Method | Endpoint            | Description                  |
-| ------ | ------------------- | ---------------------------- |
-| `GET`  | `/`                 | Root endpoint                |
-| `GET`  | `/api/v1/health`    | Health check                 |
-| `POST` | `/api/v1/upload`    | Upload and index a CV (PDF)  |
-| `POST` | `/api/v1/query`     | Query across all indexed CVs |
-| `GET`  | `/api/v1/documents` | List indexed documents       |
+| Method   | Endpoint            | Description                  |
+| -------- | ------------------- | ---------------------------- |
+| `GET`    | `/`                 | Root endpoint                |
+| `GET`    | `/api/v1/health`    | Health check                 |
+| `POST`   | `/api/v1/upload`    | Upload and index a CV (PDF)  |
+| `POST`   | `/api/v1/query`     | Query across all indexed CVs |
+| `GET`    | `/api/v1/documents` | List indexed documents       |
+| `DELETE` | `/api/v1/reset`     | Reset FAISS index            |
 
 Interactive docs: [/docs](https://ozair1112-ai-recruiter-api.hf.space/docs) · [/redoc](https://ozair1112-ai-recruiter-api.hf.space/redoc)
 
@@ -152,7 +227,7 @@ Interactive docs: [/docs](https://ozair1112-ai-recruiter-api.hf.space/docs) · [
 - [Groq API key](https://console.groq.com) — free tier available
 - [Cohere API key](https://cohere.com) — free trial available
 
-### Local setup
+### Local Setup
 
 ```bash
 # Clone and enter the repo
@@ -175,14 +250,14 @@ cp .env.example .env
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Docker setup
+### Docker Setup
 
 ```bash
 docker-compose up --build -d
 curl http://localhost:8000/api/v1/health
 ```
 
-### Frontend setup
+### Frontend Setup
 
 ```bash
 cd frontend
@@ -212,7 +287,7 @@ curl -X POST http://localhost:8000/api/v1/upload \
 }
 ```
 
-### Query candidates
+### Query Candidates
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/query \
@@ -223,11 +298,17 @@ curl -X POST http://localhost:8000/api/v1/query \
 ```json
 {
   "status": "success",
-  "answer": "Based on the indexed CVs, Candidate A has the strongest Python background...",
+  "answer": "Candidate: Sarah Chen\n\nPython: ✅ Found\n• Built production ML pipelines...",
   "sources": [...],
   "model": "llama-3.3-70b-versatile",
   "latency": 661.09
 }
+```
+
+### Reset Index
+
+```bash
+curl -X DELETE http://localhost:8000/api/v1/reset
 ```
 
 ---
@@ -238,7 +319,7 @@ curl -X POST http://localhost:8000/api/v1/query \
 GROQ_API_KEY=your_groq_key
 COHERE_API_KEY=your_cohere_key
 LANGCHAIN_API_KEY=your_langchain_key
-LANGCHAIN_TRACING_V2=false
+LANGCHAIN_TRACING_V2=true
 LANGCHAIN_PROJECT=AI-Recruiter-API
 LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
 FAISS_INDEX_PATH=./faiss_index
@@ -287,10 +368,15 @@ ai-recruiter-api/
 ├── 📁 .github/workflows/
 │   └── 📄 ci.yml                           ← CI/CD: test → build → deploy
 │
-├── 📁 images/                              ← Project diagrams (GitHub only)
-│   ├── 🖼️  architecturediagrams.png
-│   ├── 🖼️  cicddiagrams.png
-│   └── 🖼️  layeroverviews.png
+├── 📁 images/                              ← Project screenshots and diagrams
+│   ├── 🖼️  architecturediagrams.png        ← System architecture
+│   ├── 🖼️  cicddiagrams.png                ← CI/CD pipeline
+│   ├── 🖼️  layeroverviews.png              ← Layer overview
+│   ├── 🖼️  langsmithsoverviews.png         ← LangSmith traces
+│   ├── 🖼️  uploadcvs.png                   ← Upload CV screenshot
+│   ├── 🖼️  query_results.png               ← Query results screenshot
+│   ├── 🖼️  documents.png                   ← Documents screenshot
+│   └── 🖼️  analytics.png                   ← Analytics screenshot
 │
 ├── 📁 faiss_index/                         ← Vector store (git-ignored, auto-built)
 ├── 🐳 Dockerfile
@@ -357,5 +443,5 @@ MIT License — see [LICENSE](LICENSE) for details.
 ---
 
 <div align="center">
-  <sub>Built with FastAPI · React · LangChain · FAISS · Cohere · Groq · Docker · GitHub Actions</sub>
+  <sub>Built with FastAPI · React · LangChain · FAISS · Cohere · Groq · Docker · GitHub Actions · LangSmith · DeepEval</sub>
 </div>
