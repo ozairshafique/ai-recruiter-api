@@ -55,7 +55,7 @@ coverage.xml
 
 # Environment variables
 .env
-.env.*
+
 
 
 # IDEs and editors
