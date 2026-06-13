@@ -436,7 +436,7 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 **Uzair Shafique** — AI Engineer
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-uzairshafique-0077B5?logo=linkedin&logoColor=white)](https://linkedin.com/in/uzairshafique)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-uzairshafique-0077B5?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/uzair-shafique-97836810a)
 [![GitHub](https://img.shields.io/badge/GitHub-ozairshafique-181717?logo=github&logoColor=white)](https://github.com/ozairshafique)
 [![Portfolio](https://img.shields.io/badge/Portfolio-uzairshafique.vercel.app-000000?logo=vercel&logoColor=white)](https://uzairshafique.vercel.app)
 
