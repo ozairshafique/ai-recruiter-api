@@ -1,3 +1,4 @@
+import shutil
 import time
 import os
 import numpy as np
@@ -8,6 +9,7 @@ from app.core.config import get_settings
 from app.core.logging import get_logger
 from langchain_core.documents import Document
 from langchain_cohere import CohereEmbeddings
+from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain_community.vectorstores import FAISS
 from langchain_community.vectorstores.utils import DistanceStrategy
 
@@ -144,3 +146,67 @@ def embed_and_store(documents: List[Document], index_path: str = None) -> dict:
     except Exception as e:
         logger.error(f"Error in embedding and storage pipeline: {e}")
         raise
+
+
+# ── Delete Document from FAISS Index ────────────────
+def delete_document_from_index(document_id: str, index_path: str = None) -> int:
+    """Remove all chunks for document_id from the FAISS index without re-embedding.
+
+    IndexFlatIP does not support remove_ids, so we reconstruct kept vectors
+    directly from the stored flat index and build a new compact index.
+
+    Returns the number of chunks removed (0 if document_id not found).
+    """
+    index_path = index_path or settings.faiss_index_path
+    vector_store = load_faiss_index(index_path)
+
+    # Identify chunk IDs that belong to this document
+    ids_to_delete = {
+        chunk_id
+        for chunk_id, doc in vector_store.docstore._dict.items()
+        if doc.metadata.get("document_id") == document_id
+    }
+
+    if not ids_to_delete:
+        logger.info(f"document_id not found in index: {document_id}")
+        return 0
+
+    chunks_removed = len(ids_to_delete)
+
+    # Determine which chunk IDs survive
+    ids_to_keep = [
+        chunk_id
+        for chunk_id in vector_store.docstore._dict
+        if chunk_id not in ids_to_delete
+    ]
+
+    if not ids_to_keep:
+        # Last document — wipe the entire index directory
+        if Path(index_path).exists():
+            shutil.rmtree(index_path)
+        logger.info(f"All documents removed — FAISS index deleted | document_id: {document_id}")
+        return chunks_removed
+
+    # Build reverse map: docstore string ID → integer FAISS position
+    reversed_index = {v: k for k, v in vector_store.index_to_docstore_id.items()}
+
+    # Reconstruct kept vectors from the flat index (no API call needed)
+    positions_to_keep = [reversed_index[chunk_id] for chunk_id in ids_to_keep]
+    kept_vectors = np.vstack(
+        [vector_store.index.reconstruct(pos) for pos in positions_to_keep]
+    ).astype(np.float32)
+
+    # Build a fresh flat index of the same dimension
+    dim = vector_store.index.d
+    new_faiss_index = faiss.IndexFlatIP(dim)
+    new_faiss_index.add(kept_vectors)
+
+    # Patch the vector store in-place and persist
+    kept_docs = {chunk_id: vector_store.docstore._dict[chunk_id] for chunk_id in ids_to_keep}
+    vector_store.index = new_faiss_index
+    vector_store.index_to_docstore_id = dict(enumerate(ids_to_keep))
+    vector_store.docstore = InMemoryDocstore(kept_docs)
+
+    save_faiss_index(vector_store, index_path)
+    logger.info(f"Deleted {chunks_removed} chunks | document_id: {document_id}")
+    return chunks_removed
