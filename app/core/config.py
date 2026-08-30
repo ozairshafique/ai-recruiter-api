@@ -10,9 +10,13 @@ class Settings(BaseSettings):
     api_version: str = "1.0.0"
     debug: bool = False
 
-    # Grok API settings
+    # API key required for destructive operations (e.g. document deletion).
+    # Leave unset to disable enforcement (useful for local dev without auth).
+    delete_api_key: Optional[str] = None
+
+    # Groq API settings
     groq_api_key: str
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "openai/gpt-oss-120b"
     temperature: float = 0.0
 
     # Cohere API settings
