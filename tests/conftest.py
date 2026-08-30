@@ -90,7 +90,7 @@ def mock_query_results():
                 "page": 1,
             }
         ],
-        "model": "llama-3.3-70b-versatile",
+        "model": "openai/gpt-oss-120b",
         "latency_ms": 1250.0
     }
 
