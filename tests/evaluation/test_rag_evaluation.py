@@ -24,7 +24,7 @@ class GroqEvalLLM(DeepEvalBaseLLM):
         load_dotenv(override=True)
         self.model = ChatGroq(
             api_key=os.environ["GROQ_API_KEY"],
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             temperature=0.0,
         )
 
@@ -40,7 +40,7 @@ class GroqEvalLLM(DeepEvalBaseLLM):
         return response.content
 
     def get_model_name(self) -> str:
-        return "llama-3.3-70b-versatile"
+        return "openai/gpt-oss-120b"
 
 
 # ── Fixtures for Testing ───────────────
@@ -82,7 +82,7 @@ def test_cases():
 
 # ── individual Metrics Tests ─────────
 def test_answer_relevancy(groq_model, test_cases):
-    """ Test the answer relevancy metric with the sample test cases """
+    """ Testa the answer relevancy metric with the sample test cases """
     results = AnswerRelevancyMetric(
         threshold=0.7,
         model=groq_model,
