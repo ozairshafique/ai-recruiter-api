@@ -172,6 +172,17 @@ class HealthCheck(BaseModel):
         use_enum_values = True
 
 
+class DocumentDeleteResponse(BaseModel):
+    """ Response schema for document deletion """
+    status: ResponseStatus
+    document_id: str
+    chunks_removed: int
+    message: str
+
+    class Config:
+        use_enum_values = True
+
+
 class ErrorResponse(BaseModel):
     """ Schema of error response """
     status: ResponseStatus = ResponseStatus.ERROR
@@ -195,4 +206,5 @@ __all__ = [
     "JobMatchResult",
     "JobMatchResponse",
     "HealthCheck",
+    "DocumentDeleteResponse",
     "ErrorResponse"]
