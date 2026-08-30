@@ -4,9 +4,10 @@ import time
 import uuid
 from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from app.services.rag_pipeline import run_ingest_pipeline, run_query_pipeline
 from app.schemas.schemas import (
+    DocumentDeleteResponse,
     UploadResponse,
     QueryRequest,
     QueryResponse,
@@ -18,9 +19,10 @@ from app.schemas.schemas import (
     ResponseStatus,
     ErrorResponse,
 )
-from app.services.embeddings import check_faiss_index, load_faiss_index
+from app.services.embeddings import check_faiss_index, load_faiss_index, delete_document_from_index
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.core.security import require_api_key
 
 settings = get_settings()
 logger = get_logger(__name__)
@@ -232,6 +234,56 @@ async def list_documents() -> dict:
             detail=f"An error occurred while listing documents: {str(e)}"
         )
 
+# ── Delete Document Endpoint ────────────────────────────────────────────────
+# GDPR right-to-erasure: removes all stored chunks for a specific document.
+
+@router.delete(
+    "/documents/{document_id}",
+    response_model=DocumentDeleteResponse,
+    summary="Delete a Document",
+    description="Delete all indexed chunks for a document by its ID (GDPR right-to-erasure)",
+    tags=["Admin"],
+    dependencies=[Depends(require_api_key)],
+)
+async def delete_document(document_id: str) -> DocumentDeleteResponse:
+    """Delete all chunks for a given document_id from the FAISS index."""
+
+    logger.info(f"Received delete request for document_id: {document_id}")
+
+    if not check_faiss_index():
+        raise HTTPException(
+            status_code=404,
+            detail="No documents found. Please upload a resume before querying."
+        )
+
+    try:
+        chunks_removed = delete_document_from_index(document_id)
+
+        if chunks_removed == 0:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Document '{document_id}' not found in index."
+            )
+
+        logger.info(f"Deleted document_id: {document_id} | chunks removed: {chunks_removed}")
+
+        return DocumentDeleteResponse(
+            status=ResponseStatus.SUCCESS,
+            document_id=document_id,
+            chunks_removed=chunks_removed,
+            message=f"Document deleted successfully. {chunks_removed} chunk(s) removed."
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting document_id: {document_id} — {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while deleting the document: {str(e)}"
+        )
+
+
 # ── Reset Endpoint ──────────
 
 @router.delete(
@@ -239,6 +291,8 @@ async def list_documents() -> dict:
     summary="Reset the System",
     description="Delete all indexed documents and reset the system",
     tags=["Admin"],
+    dependencies=[Depends(require_api_key)],
+
 )
 async def reset_system() -> dict:
     """ Endpoint to reset the system by deleting all indexed documents and clearing the FAISS index """
