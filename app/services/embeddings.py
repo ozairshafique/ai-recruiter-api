@@ -4,7 +4,7 @@ import os
 import numpy as np
 import faiss
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from langchain_core.documents import Document
@@ -15,6 +15,23 @@ from langchain_community.vectorstores.utils import DistanceStrategy
 
 logger = get_logger(__name__)
 settings = get_settings()
+
+# ── In-memory FAISS cache ────────────────
+
+_cached_vector_store: Optional[FAISS] = None
+_cached_index_path: Optional[str] = None
+
+
+def invalidate_faiss_cache() -> None:
+    """ Clear the in-memory FAISS cache so the next read reloads fresh
+    data from disk. Called automatically by save_faiss_index() below;
+    also needs an explicit call wherever the index is removed WITHOUT
+    going through save_faiss_index (currently: /reset's shutil.rmtree). """
+    global _cached_vector_store, _cached_index_path
+    _cached_vector_store = None
+    _cached_index_path = None
+    logger.info("FAISS in-memory cache invalidated")
+
 
 # ── Initialize Embeddings ────────────────
 
@@ -47,9 +64,7 @@ def create_faiss_index(documents: List[Document], embeddings: CohereEmbeddings =
 
     try:
         logger.info(f"Creating FAISS index for {len(documents)} documents")
-
-        logger.info(f"Creating FAISS index for {len(documents)} documents")
-        vector_store = FAISS.from_documents(documents=documents, embedding=embeddings, normalize_L2=True, distance_strategy=DistanceStrategy.DOT_PRODUCT)
+        vector_store = FAISS.from_documents(documents=documents, embedding=embeddings, normalize_L2=True, distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT)
         latency = round((time.time() - start_time) * 1000, 2)
         logger.info(f"FAISS index created | Documents: {len(documents)} | Latency: {latency} ms")
         return vector_store
@@ -60,8 +75,11 @@ def create_faiss_index(documents: List[Document], embeddings: CohereEmbeddings =
 
 # ── Save FAISS Index ────────────────
 def save_faiss_index(vector_store: FAISS, index_path: str = None) -> str:
-    """ Save the FAISS index to the specified path and return the path to the saved index
-    """
+    """ Save the FAISS index to the specified path and return the path to
+    the saved index. Also invalidates the in-memory cache (NEW) — this is
+    the single choke point every write path already calls, so this is
+    where cache invalidation is centralized rather than scattered across
+    every caller. """
 
     index_path = index_path or settings.faiss_index_path
     try:
@@ -69,6 +87,7 @@ def save_faiss_index(vector_store: FAISS, index_path: str = None) -> str:
         logger.info(f"Saving FAISS index to {index_path}")
         vector_store.save_local(index_path)
 
+        invalidate_faiss_cache()  # NEW — ensures next read reflects this write
         logger.info(f"FAISS index saved at {index_path}")
         return index_path
     except Exception as e:
@@ -76,17 +95,27 @@ def save_faiss_index(vector_store: FAISS, index_path: str = None) -> str:
         raise
 
 # ── Load FAISS Index ────────────────
-def load_faiss_index(index_path: str = None, embeddings: CohereEmbeddings = None) -> FAISS:
-    """ Load a FAISS index from the specified path and return the loaded index
-    """
+def load_faiss_index(index_path: str = None, embeddings: CohereEmbeddings = None, force_reload: bool = False) -> FAISS:
+    """ Load a FAISS index from the specified path, using an in-memory
+    cache to avoid re-reading from disk on every call. """
+    global _cached_vector_store, _cached_index_path
+
     index_path = index_path or settings.faiss_index_path
-    embeddings = embeddings or get_embeddings()#
+
+    if not force_reload and _cached_vector_store is not None and _cached_index_path == index_path:
+        logger.info(f"Using cached FAISS index (no disk read) | {index_path}")
+        return _cached_vector_store
+
+    embeddings = embeddings or get_embeddings()
     try:
         if not Path(index_path).exists():
             raise FileNotFoundError(f"FAISS index not found at {index_path}")
-        logger.info(f"Loading FAISS index from {index_path}")
-        vector_store = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True, distance_strategy=DistanceStrategy.DOT_PRODUCT)
-        logger.info(f"FAISS index loaded successfully from {index_path}")
+        logger.info(f"Loading FAISS index from disk: {index_path}")
+        vector_store = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True, distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT)
+        logger.info(f"FAISS index loaded from disk and cached: {index_path}")
+
+        _cached_vector_store = vector_store
+        _cached_index_path = index_path
         return vector_store
 
     except FileNotFoundError:
@@ -131,7 +160,7 @@ def embed_and_store(documents: List[Document], index_path: str = None) -> dict:
     try:
         embeddings  = get_embeddings()
         vector_store = create_faiss_index(documents, embeddings)
-        save_faiss_index(vector_store, index_path)
+        save_faiss_index(vector_store, index_path)  # cache invalidated inside here
 
         latency = round((time.time() - start_time) * 1000, 2)
 
@@ -184,6 +213,7 @@ def delete_document_from_index(document_id: str, index_path: str = None) -> int:
         # Last document — wipe the entire index directory
         if Path(index_path).exists():
             shutil.rmtree(index_path)
+        invalidate_faiss_cache()
         logger.info(f"All documents removed — FAISS index deleted | document_id: {document_id}")
         return chunks_removed
 
@@ -207,6 +237,6 @@ def delete_document_from_index(document_id: str, index_path: str = None) -> int:
     vector_store.index_to_docstore_id = dict(enumerate(ids_to_keep))
     vector_store.docstore = InMemoryDocstore(kept_docs)
 
-    save_faiss_index(vector_store, index_path)
+    save_faiss_index(vector_store, index_path)  # cache invalidated inside here
     logger.info(f"Deleted {chunks_removed} chunks | document_id: {document_id}")
     return chunks_removed
