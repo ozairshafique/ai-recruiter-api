@@ -120,7 +120,8 @@ async def query_documents(request: QueryRequest) -> QueryResponse:
     try:
         result = run_query_pipeline(
             query = request.question,
-            top_k = request.top_k
+            top_k = request.top_k,
+            document_id = request.document_id,
             )
         latency = round((time.time() - start_time) * 1000, 2)
 
