@@ -24,9 +24,7 @@ _cached_index_path: Optional[str] = None
 
 def invalidate_faiss_cache() -> None:
     """ Clear the in-memory FAISS cache so the next read reloads fresh
-    data from disk. Called automatically by save_faiss_index() below;
-    also needs an explicit call wherever the index is removed WITHOUT
-    going through save_faiss_index (currently: /reset's shutil.rmtree). """
+    data from disk. Called automatically by save_faiss_index() below; also needs an explicit call wherever the index is removed WITHOUT going through save_faiss_index (currently: /reset's shutil.rmtree). """
     global _cached_vector_store, _cached_index_path
     _cached_vector_store = None
     _cached_index_path = None
