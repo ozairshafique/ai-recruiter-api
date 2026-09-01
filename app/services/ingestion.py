@@ -11,6 +11,7 @@ from langchain_core.documents import Document
 logger = get_logger(__name__)
 settings = get_settings()
 
+MINMUM_CHUNK_SIZE = 40
 # ── Validate File ───────────────────
 
 def validate_file(file_path: str) -> None:
@@ -80,6 +81,12 @@ def split_documents(documents: List[Document],
     if not chunks:
         logger.error("No chunks created from documents")
         raise ValueError("No chunks created from documents")
+
+    before_count = len(chunks)
+    chunks = [chunk for chunk in chunks if len(chunk.page_content.strip()) >= MINMUM_CHUNK_SIZE]
+    dropped_count = before_count - len(chunks)
+    if dropped_count:
+        logger.info(f"Dropped {dropped_count} chunks smaller than minimum size {MINMUM_CHUNK_SIZE}")
 
     logger.info(f"Documents split into {len(chunks)} chunks")
     return chunks
