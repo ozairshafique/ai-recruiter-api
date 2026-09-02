@@ -63,7 +63,7 @@ class QueryRequest(BaseModel):
                           examples=["What is the candidate's experience with Python?"]
                           )
 
-    top_k: Optional[int] = Field(default= 5,
+    top_k: Optional[int] = Field(default= 20,
                                  ge=1,
                                  le=20,
                                 description="Number of top relevant chunks to retrieve")
