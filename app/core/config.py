@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = 50
 
     # Retrieval settings
-    top_k: int = 5
+    top_k: int = 20
 
     model_config = {
         "env_file": ".env",
