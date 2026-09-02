@@ -103,10 +103,8 @@ def _retrieve_balanced_across_candidates(
 
         all_results.extend(retrieved_documents)
 
-        if dropped_candidates:
-            logger.info(f"Dropped candidates due to low relevance scores: {dropped_candidates}")
-
-        logger.info(f"Retrieved {len(retrieved_documents)} documents for candidate {doc_id} | Best score: {best_scores}")
+    if dropped_candidates:
+        logger.info(f"Dropped candidates due to low relevance scores: {dropped_candidates}")
 
     return all_results
 
@@ -129,6 +127,7 @@ def run_query_pipeline(query: str, vectorstore: Optional[FAISS] = None, top_k: i
                 query=query,
                 top_k=top_k,
                 vector_store=vectorstore,
+                minimum_relevance_score=None
             )
 
         if not retrieved_documents:
