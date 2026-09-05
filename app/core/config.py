@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     # Retrieval settings
     top_k: int = 20
 
+    # Job matching settings
+    job_match_chunks_per_candidate: int = 8
+
+    # Max concurrent matches for job matching
+    max_concurrent_matches: int = 8
+
     model_config = {
         "env_file": ".env",
         "case_sensitive": False,
