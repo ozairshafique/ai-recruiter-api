@@ -175,7 +175,7 @@ async def match_job(request: JobMatch) -> JobMatchResponse:
         )
     try:
         agent = get_job_match_agent(top_k=request.top_k)
-        results = await agent.arun(job_description=request.job_description, top_k=request.top_k)
+        results = await agent.arun(job_description=request.job_description, experience_level=request.experience_level, job_type=request.job_type, top_k=request.top_k)
         logger.info(f"Job-match completed: {len(results)} results returned")
 
         return JobMatchResponse(
