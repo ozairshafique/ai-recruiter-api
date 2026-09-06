@@ -1,5 +1,5 @@
 
-import shutil
+#import shutil
 import time
 import uuid
 from pathlib import Path
@@ -13,6 +13,7 @@ from app.schemas.schemas import (
     QueryResponse,
     HealthCheck,
     SourceDocument,
+    CandidateProfile,
     JobMatchResult,
     JobMatchResponse,
     JobMatch,
@@ -22,6 +23,7 @@ from app.schemas.schemas import (
 from app.services.embeddings import check_faiss_index, load_faiss_index, delete_document_from_index
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.agents import get_job_match_agent, get_candidate_extraction_agent
 from app.core.security import require_api_key
 
 settings = get_settings()
@@ -153,6 +155,79 @@ async def query_documents(request: QueryRequest) -> QueryResponse:
             detail=f"An error occurred while processing the query: {str(e)}"
         )
 
+# ── Match Endpoint ─────────────────
+@router.post(
+    "/job-match",
+    response_model=JobMatchResponse,
+    summary="Match Candidates to a Job Description",
+    description="Score every indexed candidate against a job description and return the top matches",
+    tags=["Matching"],
+)
+async def match_job(request: JobMatch) -> JobMatchResponse:
+    """Score all indexed candidates against a job description."""
+
+    logger.info(f"Received job-match request: {request.job_description[:60]}... top_k={request.top_k}")
+
+    if not check_faiss_index():
+        raise HTTPException(
+            status_code=404,
+            detail="No documents found. Please upload a resume before matching.",
+        )
+    try:
+        agent = get_job_match_agent(top_k=request.top_k)
+        results = await agent.arun(job_description=request.job_description, top_k=request.top_k)
+        logger.info(f"Job-match completed: {len(results)} results returned")
+
+        return JobMatchResponse(
+            status=ResponseStatus.SUCCESS,
+            job_description=request.job_description,
+            matches=len(results),
+            results=results,
+        )
+    except HTTPException as e:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing job-match request: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while matching candidates: {str(e)}",
+        )
+
+# ── Candidate Endpoint ─────────────────
+@router.get(
+    "/candidates/{document_id}",
+    response_model=CandidateProfile,
+    summary="Extract a Candidate Profile",
+    description="Extract a structured candidate profile from an indexed CV document",
+    tags=["Candidates"],)
+def get_candidate_profile(document_id: str) -> CandidateProfile:
+    """Extract a structured CandidateProfile from an indexed document """
+
+    logger.info(f"Received candidate-extraction request for document_id: {document_id}")
+
+    if not check_faiss_index():
+        raise HTTPException(
+            status_code=404,
+            detail="No documents found. Please upload a resume first.",
+        )
+    try:
+        agent = get_candidate_extraction_agent()
+        results = agent.run(document_id=document_id)
+
+        if results.full_name is None and not results.skills:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No candidate profile could be extracted from document_id: {document_id}. Please ensure the document is a valid CV and has been indexed correctly.",
+            )
+        return results
+    except HTTPException as e:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while extracting the candidate profile: {str(e)}",
+        )
+
 # ── Health Check Endpoint ───────────
 @router.get(
     "/health",
@@ -274,8 +349,7 @@ async def delete_document(document_id: str) -> DocumentDeleteResponse:
             chunks_removed=chunks_removed,
             message=f"Document deleted successfully. {chunks_removed} chunk(s) removed."
         )
-
-    except HTTPException:
+    except HTTPException as e:
         raise
     except Exception as e:
         logger.error(f"Error deleting document_id: {document_id} — {e}")
@@ -312,6 +386,8 @@ async def reset_system() -> dict:
                 "status": "success",
                 "message": "No indexed documents found. System is already clean."
             }
+    except HTTPException as e:
+        raise
     except Exception as e:
         logger.error(f"Error resetting system: {e}")
         raise HTTPException(
