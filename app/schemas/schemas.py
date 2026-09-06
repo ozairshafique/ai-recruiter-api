@@ -131,6 +131,9 @@ class JobMatch(BaseModel):
     experience_level: Optional[ExperienceLevel] = None
     job_type: Optional[JobType] = None
 
+    class Config:
+        use_enum_values = True
+
 
 class JobMatchResult(BaseModel):
     """ Result for single job match """
