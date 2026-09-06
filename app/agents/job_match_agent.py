@@ -199,7 +199,6 @@ class JobMatchAgent:
         logger.info(f"JobMatchAgent | {len(results)} matches in {latency} ms")
         return results
 
-
     def run(self, job_description: str, top_k: int = None) -> list[JobMatchResult]:
         ''' Synchronous wrapper for the asynchronous run method.'''
         return asyncio.run(self.arun(job_description, top_k))
