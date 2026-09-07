@@ -188,3 +188,12 @@ def test_experience_level_cap_does_not_raise_already_low_score():
     assert capped_score == 0.15
     assert note is None
 
+def test_missing_experience_level_does_not_cap():
+    from app.agents.job_match_agent import _apply_experience_level_filter
+
+    score, note = _apply_experience_level_filter(0.8, None, "junior")
+    assert score == 0.8
+    assert note is None
+    score, note = _apply_experience_level_filter(0.8, "junior", None)
+    assert score == 0.8
+    assert note is None
