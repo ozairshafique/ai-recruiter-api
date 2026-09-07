@@ -197,3 +197,20 @@ def test_missing_experience_level_does_not_cap():
     score, note = _apply_experience_level_filter(0.8, "junior", None)
     assert score == 0.8
     assert note is None
+
+def test_parse_match_cap_in_summary():
+    from app.agents.job_match_agent import JobMatchAgent
+    agent = JobMatchAgent.__new__(JobMatchAgent)
+    raw = json.dumps({
+            "full_name": "Joe Doe",
+            "match_score": 0.9,
+            "matched_skills": ["JavaScript"],
+            "candidate_experience_level": "junior",
+            "summary": "Strong frontend developer"
+        })
+
+    results = agent._parse_match(raw, document_id="docs-1", required_experience_level="mid")
+    assert results.match_score == 0.6
+    assert "Strong frontend developer" in results.summary
+    assert "junior" in results.summary
+
