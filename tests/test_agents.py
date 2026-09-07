@@ -120,6 +120,7 @@ def test_job_match_agent_degrades_on_malformed_json():
     assert results.full_name is None
 
 def test_job_match_agent_not_duplicate_candidate_chunks():
+    ''' Test that the JobMatchAgent does not return duplicate candidates when multiple chunks of the same candidate are present.'''
     from app.agents.job_match_agent import JobMatchAgent
     with patch("app.agents.job_match_agent.initialize_llm"), \
         patch("app.agents.job_match_agent.get_job_match_prompt"), \
@@ -178,3 +179,12 @@ def test_job_match_agent_experience_level_cap(candidate_level, required_level, e
         assert candidate_level in note
         assert required_level in note
         assert "Experience level" not in note
+
+def test_experience_level_cap_does_not_raise_already_low_score():
+    from app.agents.job_match_agent import _apply_experience_level_filter
+
+    low_natural_score = 0.15
+    capped_score, note = _apply_experience_level_filter(low_natural_score, "senior", "junior")
+    assert capped_score == 0.15
+    assert note is None
+
