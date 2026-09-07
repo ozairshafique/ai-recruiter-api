@@ -102,7 +102,7 @@ class CandidateExtractionAgent:
         skills_raw = _find(r"skills[:\s]+([^\n]+(?:\n[-•]\s*[^\n]+)*)")
         skills = [s.strip("-• ").strip() for s in skills_raw.splitlines() if s.strip()] if skills_raw else []
 
-        years_str = _find(r"(\d+\.\d*)\+?\s*years?\s*(?:of\s+)?(?:professional\s+)?experience")
+        years_str = _find(r"(\d(?:\.\d+)?)\+?\s*years?\s*(?:of\s+)?(?:professional\s+)?experience")
         experience_years = float(years_str) if years_str else None
 
         return CandidateProfile(
