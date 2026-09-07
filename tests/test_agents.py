@@ -109,3 +109,12 @@ def test_job_match_agent_clamps_mismatch():
     assert profile.full_name == "Bob Johnson"
     assert profile.match_score == 1.0  # Clamped to 1.0
 
+def test_job_match_agent_degrades_on_malformed_json():
+    from app.agents.job_match_agent import JobMatchAgent
+    agent = JobMatchAgent.__new__(JobMatchAgent)
+
+    results = agent._parse_match("This is not JSON", document_id="doc-5")
+    assert results.match_score == 0.0
+    assert results.summary == "Error parsing LLM response"
+    assert results.document_id == "doc-5"
+    assert results.full_name is None
