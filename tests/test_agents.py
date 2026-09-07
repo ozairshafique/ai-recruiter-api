@@ -118,3 +118,38 @@ def test_job_match_agent_degrades_on_malformed_json():
     assert results.summary == "Error parsing LLM response"
     assert results.document_id == "doc-5"
     assert results.full_name is None
+
+def test_job_match_agent_not_duplicate_candidate_chunks():
+    from app.agents.job_match_agent import JobMatchAgent
+    with patch("app.agents.job_match_agent.initialize_llm"), \
+        patch("app.agents.job_match_agent.get_job_match_prompt"), \
+            patch("app.agents.job_match_agent.get_all_document_ids") as mock_ids, \
+                patch("app.agents.job_match_agent.retrieve") as mock_retrieve:
+        mock_ids.return_value = ["docs-1"]
+        mock_retrieve.return_value = [{
+            "document_id": "docs-1", "content": "chunk A", "page": 1, "file_name": "file1.pdf"
+        }, {"document_id": "docs-1", "content": "chunk B", "page": 2, "file_name": "file1.pdf"}]
+
+        agent = JobMatchAgent.__new__(JobMatchAgent)
+        agent.top_k = 5
+        agent.chain = MagicMock()
+
+        import asyncio
+        async def fake_invoke(*args, **kwargs):
+            response = MagicMock()
+            response.content = json.dumps({
+                "full_name": "Candidate A",
+                "match_score": 0.9,
+                "document_id": "docs-1",
+                "matched_skills": ["Python"],
+                "candidate_experience_level": "mid",
+                "summary": "ok"
+            })
+            return response
+
+        agent._invoke_with_retry = fake_invoke
+        import app.agents.job_match_agent as jma
+        agent._semaphore = jma.asyncio.Semaphore(4)
+        results = asyncio.run(agent.arun(job_description="Looking for a Python developer", top_k=5))
+        assert len(results) == 1
+        assert results[0].document_id == "docs-1"
