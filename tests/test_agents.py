@@ -153,3 +153,28 @@ def test_job_match_agent_not_duplicate_candidate_chunks():
         results = asyncio.run(agent.arun(job_description="Looking for a Python developer", top_k=5))
         assert len(results) == 1
         assert results[0].document_id == "docs-1"
+
+
+#── Job Matching Agent Tests with expereince level cap ─────────
+@pytest.mark.parametrize("candidate_level, required_level, expected_score",[("senior", "senior", 0.95), # exact match, no cap, natural score preserved
+("senior","mid", 0.6), # 1st tier cap, score capped at 0.6
+("senior","junior", 0.3), # 2nd tier cap, score capped at 0.3
+("junior","mid", 0.6), # 1st tier cap, score capped at 0.6
+("mid","lead", 0.3), # 2nd tier cap, score capped at 0.3
+("junior", "lead", 0.3), # 3 tiers off - still capped at 0.3 (not lower)
+("entry", "lead", 0.3), # max distance - capped at 0.3
+],)
+
+def test_job_match_agent_experience_level_cap(candidate_level, required_level, expected_score):
+    from app.agents.job_match_agent import _apply_experience_level_filter
+
+    natural_score = 0.95
+
+    capped_score, note = _apply_experience_level_filter(natural_score, candidate_level, required_level)
+    assert capped_score == expected_score
+    if candidate_level != required_level:
+        assert note is not None
+        assert "does not match required level" in note
+        assert candidate_level in note
+        assert required_level in note
+        assert "Experience level" not in note
