@@ -23,6 +23,7 @@ from app.schemas.schemas import (
 from app.services.embeddings import check_faiss_index, load_faiss_index, delete_document_from_index
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.prompt.recuiter_prompt import RECRUITER_SYSTEM_PROMPT
 from app.agents import get_job_match_agent, get_candidate_extraction_agent
 from app.core.security import require_api_key
 
@@ -124,6 +125,7 @@ async def query_documents(request: QueryRequest) -> QueryResponse:
             query = request.question,
             top_k = request.top_k,
             document_id = request.document_id,
+            system_prompt = RECRUITER_SYSTEM_PROMPT,
             )
         latency = round((time.time() - start_time) * 1000, 2)
 
