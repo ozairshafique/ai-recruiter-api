@@ -29,6 +29,7 @@ class AgentLLMError(Exception):
 @tool
 async def match_candidate(job_description: str, top_k: int = 5) -> str:
 
+    """ Match a candidate to a job description based on their skills and experience. """
     agent = get_job_match_agent(top_k=top_k)
     results = await agent.arun(job_description=job_description,top_k=top_k)
 
@@ -39,9 +40,7 @@ async def match_candidate(job_description: str, top_k: int = 5) -> str:
 
 @tool
 def extract_candidate_info(document_id: str) -> str:
-    """ Extract a structured profile (skills, experience level, education)
-    for ONE candidate, given their document_id. If you don't have a
-    document_id yet, use find_document_id first"""
+    """ Extract a structured profile (skills, experience level, education) for ONE candidate, given their document_id. If you don't have a document_id yet, use find_document_id first"""
 
     agent = get_candidate_extraction_agent()
     profile = agent.run(document_id=document_id)
