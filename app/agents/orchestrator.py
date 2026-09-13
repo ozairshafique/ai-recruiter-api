@@ -243,3 +243,19 @@ async def run_autnomous_agent(user_message: str, require_human_approval: bool = 
         "latency_ms": latency
     }
 
+async def approve_pending_action(thread_id: str, required_human_approval: bool = True):
+    start = time.time()
+    app = _get_compiled_graph(required_human_approval)
+    config = {"configurable": {"thread_id": thread_id}}
+
+    final_results = await app.ainvoke(None, config=config)
+    latency = round((time.time() - start) * 1000, 2)
+    last_message = final_results["messages"][-1]
+    logger.info(f"Approved pending action for thread_id: {thread_id} | latency: {latency} ms")
+    return {
+        "status": "completed",
+        "results": last_message.content,
+        "steps": final_results['steps'],
+        "thread_id": thread_id,
+        "latency_ms": latency
+    }
