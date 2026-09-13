@@ -210,6 +210,7 @@ def _get_compiled_graph(require_human_approval: bool):
         _compiled_graph_normal = build_autnomous_agent(require_human_approval=False)
     return _compiled_graph_normal
 
+
 async def run_autnomous_agent(user_message: str, require_human_approval: bool = False, thread_id: str = None) -> dict:
     start = time.time()
     app = _get_compiled_graph(require_human_approval)
@@ -226,7 +227,7 @@ async def run_autnomous_agent(user_message: str, require_human_approval: bool = 
     last_message = final_results["messages"][-1]
     pending_tools = getattr(last_message, "tool_calls", None) or []
 
-    if last_message and pending_tools:
+    if require_human_approval and pending_tools:
         logger.info(f"Autnomous agent has pending tools: {pending_tools} for human review")
         return {
             "status": "awaiting_approval",
@@ -243,9 +244,9 @@ async def run_autnomous_agent(user_message: str, require_human_approval: bool = 
         "latency_ms": latency
     }
 
-async def approve_pending_action(thread_id: str, required_human_approval: bool = True):
+async def approve_pending_action(thread_id: str, require_human_approval: bool = True):
     start = time.time()
-    app = _get_compiled_graph(required_human_approval)
+    app = _get_compiled_graph(require_human_approval)
     config = {"configurable": {"thread_id": thread_id}}
 
     final_results = await app.ainvoke(None, config=config)
