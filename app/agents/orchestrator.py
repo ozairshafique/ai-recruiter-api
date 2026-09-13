@@ -209,3 +209,37 @@ def _get_compiled_graph(require_human_approval: bool):
     if _compiled_graph_normal is None:
         _compiled_graph_normal = build_autnomous_agent(require_human_approval=False)
     return _compiled_graph_normal
+
+async def run_autnomous_agent(user_message: str, require_human_approval: bool = False, thread_id: str = None) -> dict:
+    start = time.time()
+    app = _get_compiled_graph(require_human_approval)
+    config = {"configurable": {"thread_id": thread_id}}
+    initialize_state = {
+        "messages": [
+            SystemMessage(content=AGENT_SYSTEM_PROMPT),
+            HumanMessage(content=user_message)],
+        "steps": 0
+    }
+
+    final_results = await app.ainvoke(initialize_state, config=config)
+    latency = round((time.time() - start) * 1000, 2)
+    last_message = final_results["messages"][-1]
+    pending_tools = getattr(last_message, "tool_calls", None) or []
+
+    if last_message and pending_tools:
+        logger.info(f"Autnomous agent has pending tools: {pending_tools} for human review")
+        return {
+            "status": "awaiting_approval",
+            "pending_tools": pending_tools,
+            "thread_id": thread_id,
+            "latency_ms": latency
+        }
+    logger.info(f"AutnomousAgent | thread_id: {thread_id} | completed in steps {final_results['steps']} | latency: {latency} ms")
+    return {
+        "status": "completed",
+        "results": last_message.content,
+        "steps": final_results['steps'],
+        "thread_id": thread_id,
+        "latency_ms": latency
+    }
+
