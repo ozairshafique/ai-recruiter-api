@@ -75,3 +75,22 @@ def find_document_id(candidate_name_or_descriptions: str) -> str:
         return f"Found possible matched document (document_id: {doc_id}, file_name: {file_name})," f" but file name does not match what was asked. Please verify the document_id before using it in extract_candidate_info"
 
     return f"Found document_id: {doc_id} for candidate: {candidate_name_or_descriptions} (file_name: {file_name})"
+
+@tool
+def ask_about_candidate(questions: str) -> str:
+    """Ask a question about a specific candidate"""
+    agent = get_recruiter_agent()
+    results = agent.run(question=questions)
+    return results["message"]
+
+TOOLS = [match_candidate, extract_candidate_info, ask_about_candidate]
+TOOL_BY_NAME = {t.name: t for t in TOOLS}
+
+_agent_llm = None
+
+ # Initialize the agent's LLM with the available tools
+def _get_agent_llm():
+    global _agent_llm
+    if _agent_llm is None:
+        _agent_llm = initialize_llm(temperature=0.0).bind_tools(TOOLS)
+    return _agent_llm
