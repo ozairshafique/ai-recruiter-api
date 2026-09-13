@@ -185,10 +185,28 @@ def build_autnomous_agent(require_human_approval: bool = False):
         checkpoint["interrupt_before"] = ["tools"]
     return graph.compile(**checkpoint) # Compile the graph with the specified checkpoint
 
-# Initialize the memory saver
+
+
+# ── Cached singletons: checkpointer + compiled graphs ──────────
+# One shared MemorySaver so thread_id-based memory actually persists across separate calls, not just within a single call's internal loop. Two separate compiled graphs (with/without human approval) since interrupt_before is baked in at compile time, not something you can
+# toggle per-call on an already-compiled graphs
+
 _memory_saver = None
+_compiled_graph_with_approval = None
+_compiled_graph_normal = None
+
 def _get_memory_saver():
     global _memory_saver
     if _memory_saver is None:
         _memory_saver = MemorySaver()
     return _memory_saver
+
+def _get_compiled_graph(require_human_approval: bool):
+    global _compiled_graph_with_approval, _compiled_graph_normal
+    if require_human_approval:
+        if _compiled_graph_with_approval is None:
+            _compiled_graph_with_approval = build_autnomous_agent(require_human_approval=True)
+        return _compiled_graph_with_approval
+    if _compiled_graph_normal is None:
+        _compiled_graph_normal = build_autnomous_agent(require_human_approval=False)
+        return _compiled_graph_normal
