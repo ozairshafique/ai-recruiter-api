@@ -2,7 +2,7 @@
 from typing import Annotated, TypedDict
 import asyncio
 import time
-from tenacity import retry, stop_after_attempt, wait_random_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from app.core.logging import get_logger
 from app.agents import (
     get_recruiter_agent,
@@ -94,3 +94,47 @@ def _get_agent_llm():
     if _agent_llm is None:
         _agent_llm = initialize_llm(temperature=0.0).bind_tools(TOOLS)
     return _agent_llm
+
+
+AGENT_SYSTEM_PROMPT = """
+You are an autonomous recruiting assistant with access to tools. Reason step by step:
+1. Decide if you need a tool to answer the request, and which one.
+2. Call it, then read its actual result before deciding what to do next.
+3. If the result gives you what you need, answer the user directly - do not call more tools than necessary.
+4. If you need another piece of information (e.g. you found a name but need its document_id before extracting a profile), call the
+appropriate tool next - do not guess or fabricate an ID or a result.
+5. Never state a hiring recommendation or declare one candidate "best" - report evidence only, the human recruiter decides.
+"""
+
+class AgentState(TypedDict):
+    messages: Annotated[list[AnyMessage], add_messages]
+    steps: int
+
+@retry(
+    reraise=True,
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=0.5, min=0.5, max=8),
+    retry=retry_if_exception_type(AgentLLMError),
+    )
+def _invoke_agent_llm(messages):
+    try:
+        return _get_agent_llm().invoke(messages)
+    except Exception as e:
+        raise AgentLLMError(str(e))
+
+def agent_node(state: AgentState) -> AgentState:
+    start = time.time()
+    try:
+        response = _invoke_agent_llm(state["messages"])
+    except AgentLLMError as e:
+        logger.error(f"AutonomousAgent | reasoning call failed after retries: {e}")
+        response = HumanMessage(content="I encountered an error and cannot continue reasoning about this request")
+
+    latency = round((time.time() - start) * 1000, 2)
+    tools_calls = getattr(response, "tool_calls", None) or []
+    logger.info(f"AutonomousAgent | agent_node | steps: {len(state['steps'])}"
+                f"decided to call {len(tools_calls)} tools | latency: {latency} ms")
+    return {"messages": [response], "steps": state["steps"] + 1}
+
+
+
