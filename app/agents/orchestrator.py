@@ -82,7 +82,7 @@ def ask_about_candidate(questions: str) -> str:
     """Ask a question about a specific candidate"""
     agent = get_recruiter_agent()
     results = agent.run(question=questions)
-    return results["message"]
+    return results["answer"]
 
 TOOLS = [match_candidate, extract_candidate_info, ask_about_candidate, find_document_id]
 TOOL_BY_NAME = {t.name: t for t in TOOLS}
@@ -133,7 +133,7 @@ def agent_node(state: AgentState) -> AgentState:
 
     latency = round((time.time() - start) * 1000, 2)
     tools_calls = getattr(response, "tool_calls", None) or []
-    logger.info(f"AutonomousAgent | agent_node | steps: {len(state['steps'])}"
+    logger.info(f"AutonomousAgent | agent_node | steps: {state['steps']}"
     f"decided to call {len(tools_calls)} tools | latency: {latency} ms")
     return {"messages": [response], "steps": state["steps"] + 1}
 
@@ -173,8 +173,8 @@ def should_continue(state: AgentState) -> str:
 def build_autnomous_agent(require_human_approval: bool = False):
     """Builds the autonomous agent with the specified configuration, including whether human approval is required"""
     graph = StateGraph(AgentState)
-    graph.add_node("agent")
-    graph.add_node("tools")
+    graph.add_node("agent", agent_node)
+    graph.add_node("tools", tools_node)
 
     graph.set_entry_point("agent")
     graph.add_conditional_edges("agent", should_continue,{"continue": "tools", "end": END})
@@ -209,4 +209,4 @@ def _get_compiled_graph(require_human_approval: bool):
         return _compiled_graph_with_approval
     if _compiled_graph_normal is None:
         _compiled_graph_normal = build_autnomous_agent(require_human_approval=False)
-        return _compiled_graph_normal
+    return _compiled_graph_normal
