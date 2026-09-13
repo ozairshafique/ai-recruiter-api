@@ -159,3 +159,12 @@ async def tools_node(state: AgentState) -> AgentState:
         # Return the updated state with the tool results
     return {"messages": tools_messages, "steps": state["steps"]}
 
+def should_continue(state: AgentState) -> str:
+    if state["steps"] >= MAX_AGENTS_STEPS:
+        logger.error("AutonomousAgent | should_continue | maximum steps {MAX_AGENTS_STEPS}, stopping")
+        return "end"
+    last_messages =state["messages"][-1]
+    if getattr(last_messages, "tool_calls", None):
+        return "continue"
+    return "end"
+
