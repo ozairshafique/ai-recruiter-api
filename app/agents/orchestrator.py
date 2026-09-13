@@ -133,8 +133,29 @@ def agent_node(state: AgentState) -> AgentState:
     latency = round((time.time() - start) * 1000, 2)
     tools_calls = getattr(response, "tool_calls", None) or []
     logger.info(f"AutonomousAgent | agent_node | steps: {len(state['steps'])}"
-                f"decided to call {len(tools_calls)} tools | latency: {latency} ms")
+    f"decided to call {len(tools_calls)} tools | latency: {latency} ms")
     return {"messages": [response], "steps": state["steps"] + 1}
 
+async def tools_node(state: AgentState) -> AgentState:
+    """Executes whatever tool(s) the model just decided to call, and feeds the REAL result back as an observation - the model sees this on its next reasoning step and decides what to do with it """
 
+    last_message = state["messages"][-1]
+    tools_messages = []
+
+    for call in last_message.tool_calls:
+        tool_name = call["name"]
+        tool_args = call["args"]
+        logger.info(f"AutonomousAgent | tools_node | calling tool: {tool_name} with args: {tool_args}")
+
+        try:
+            # Execute the selected tool asynchronously
+            tool_selected = TOOL_BY_NAME[tool_name]
+            results = await tool_selected.ainvoke(tool_args)
+        except Exception as e:
+            logger.error(f"AutonomousAgent | tools_node | error calling tool: {tool_name} with args: {tool_args} - {e}")
+            results = f"Tools {tool_name} Error: {e}"
+        tools_messages.append(ToolMessage(content=str(results), tool_call_id=call["id"]))
+
+        # Return the updated state with the tool results
+    return {"messages": tools_messages, "steps": state["steps"]}
 
