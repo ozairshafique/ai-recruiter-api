@@ -34,7 +34,7 @@ async def match_candidate(job_description: str, top_k: int = 5) -> str:
     if not results:
         return "No results returned from the JobMatchAgent."
 
-    return "\n".join(f"Candidate: {r.full_name}, Score: {r.match_score: .2f}, Summary: {r.summary or 'N/A'}" for r in results)
+    return "\n".join(f"Candidate: {r.full_name}, Score: {r.match_score:.2f}, Summary: {r.summary or 'N/A'}" for r in results)
 
 @tool
 def extract_candidate_info(document_id: str) -> str:
@@ -45,7 +45,7 @@ def extract_candidate_info(document_id: str) -> str:
     agent = get_candidate_extraction_agent()
     profile = agent.run(document_id=document_id)
 
-    if profile.full_name is None or profile.skills is []:
+    if profile.full_name is None or profile.skills is None:
         return f"No candidate information could be extracted for document_id: {document_id}"
     return f"Candidate Profile:{profile.full_name} \n Skills:{', '.join(profile.skills)}, Experience:{profile.experience_years}, Experience Level: {profile.experience_level}, Education: {profile.education}"
 
@@ -83,7 +83,7 @@ def ask_about_candidate(questions: str) -> str:
     results = agent.run(question=questions)
     return results["message"]
 
-TOOLS = [match_candidate, extract_candidate_info, ask_about_candidate]
+TOOLS = [match_candidate, extract_candidate_info, ask_about_candidate, find_document_id]
 TOOL_BY_NAME = {t.name: t for t in TOOLS}
 
 _agent_llm = None
