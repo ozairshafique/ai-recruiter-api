@@ -12,6 +12,7 @@ from app.agents import (
 from langgraph.graph.message import add_messages
 from app.services.llm_service import initialize_llm
 from langchain_core.tools import tool
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage, ToolMessage
 
@@ -160,6 +161,7 @@ async def tools_node(state: AgentState) -> AgentState:
     return {"messages": tools_messages, "steps": state["steps"]}
 
 def should_continue(state: AgentState) -> str:
+    """Determines whether the agent should continue or end, based on the number of steps taken and the presence of tool calls in the last message"""
     if state["steps"] >= MAX_AGENTS_STEPS:
         logger.error("AutonomousAgent | should_continue | maximum steps {MAX_AGENTS_STEPS}, stopping")
         return "end"
@@ -168,3 +170,25 @@ def should_continue(state: AgentState) -> str:
         return "continue"
     return "end"
 
+def build_autnomous_agent(require_human_approval: bool = False):
+    """Builds the autonomous agent with the specified configuration, including whether human approval is required"""
+    graph = StateGraph(AgentState)
+    graph.add_node("agent")
+    graph.add_node("tools")
+
+    graph.set_entry_point("agent")
+    graph.add_conditional_edges("agent", should_continue,{"continue": "tools", "end": END})
+    graph.add_edge("tools", "agent")
+    checkpoint = {"checkpointer": _get_memory_saver()}
+    if require_human_approval:
+        # Add an interrupt before the tools node
+        checkpoint["interrupt_before"] = ["tools"]
+    return graph.compile(**checkpoint) # Compile the graph with the specified checkpoint
+
+# Initialize the memory saver
+_memory_saver = None
+def _get_memory_saver():
+    global _memory_saver
+    if _memory_saver is None:
+        _memory_saver = MemorySaver()
+    return _memory_saver
