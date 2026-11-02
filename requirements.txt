@@ -5,6 +5,7 @@ langchain-openai>=0.3.16
 langchain-groq>=1.1.2
 langchain-cohere>=0.4.3
 langgraph>=0.4.5
+langsmith>=0.8.8
 
 # Vector Store
 faiss-cpu>=1.7.4
@@ -13,8 +14,16 @@ faiss-cpu>=1.7.4
 fastapi>=0.115.0
 uvicorn>=0.34.0
 python-multipart>=0.0.29
-pytest>=8.0.0
 
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=1.4.0
+fastmcp>=4.1.0
+
+# Search
+tavily-python>=0.7.26
+
+tenacity>=8.2.0
 # Document Processing
 pypdf>=5.4.0
 PyMuPDF>=1.27.0
