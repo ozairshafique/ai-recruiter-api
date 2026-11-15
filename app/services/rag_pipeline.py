@@ -13,6 +13,7 @@ from app.services.embeddings import (
     save_faiss_index
 )
 from app.services.llm_service import llm_generate
+from app.services.guardrails import add_no_verdict_reminder, remove_verdicts
 from app.core.config import get_settings
 from app.core.logging import get_logger
 
@@ -133,7 +134,16 @@ def run_query_pipeline(query: str, vectorstore: Optional[FAISS] = None, top_k: i
         if not retrieved_documents:
             logger.warning(f"No relevant documents found for query: {query[:50]}")
 
-        answer = llm_generate(question=query, retrieved_documents=retrieved_documents, system_prompt=system_prompt)
+        # Human-in-the-loop guardrail, enforced in code: remind before generation,
+        # then strip any verdict the model still produces.
+        answer = llm_generate(
+            question=add_no_verdict_reminder(query),
+            retrieved_documents=retrieved_documents,
+            system_prompt=system_prompt,
+        )
+        answer["answer"], verdict_removed = remove_verdicts(answer["answer"])
+        if verdict_removed:
+            logger.warning(f"Guardrail removed a comparative verdict | Query: {query[:50]}")
 
         latency = round((time.time() - start_time) * 1000, 2)
         logger.info(f"Query pipeline completed | Query: {query[:50]} | Retrieved Docs: {len(retrieved_documents)} | Latency: {latency} ms")
