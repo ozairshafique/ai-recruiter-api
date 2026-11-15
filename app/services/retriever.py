@@ -1,4 +1,5 @@
 from typing import List, Optional
+import re
 import time
 from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
@@ -38,7 +39,13 @@ def similarity_search_with_score(query: str, vectorstore: FAISS, document_id: Op
 
         if document_id:
             logger.info(f"Filtering results by document_id: {document_id}")
-            results = vectorstore.similarity_search_with_score(query=query, k=top_k, filter={"document_id": document_id})
+            # FAISS applies the filter AFTER fetching the fetch_k nearest chunks of the whole index
+            # (default 20). With many CVs, a candidate's own chunks (e.g. the profile with name and
+            # years) could be missing. Searching inside one CV must consider all of its chunks.
+            fetch_k = max(top_k, getattr(getattr(vectorstore, "index", None), "ntotal", 0) or 0, 20)
+            results = vectorstore.similarity_search_with_score(
+                query=query, k=top_k, filter={"document_id": document_id}, fetch_k=fetch_k
+            )
         else:
             results = vectorstore.similarity_search_with_score(query=query, k=top_k)
         logger.info(f"Similarity search with scores completed | Results: {len(results)}")
@@ -127,6 +134,37 @@ def get_document_by_name(file_name: str, index_path: str = None, vector_store: O
     except Exception as e:
         logger.error(f"Error retrieving document by name: {e}")
         return None
+
+
+# ── Find Documents by Candidate Name (deterministic) ───────────────
+def find_documents_by_name(name: str, index_path: str = None, vector_store: Optional[FAISS] = None) -> List[dict]:
+    """ Find documents whose file name or CV header contains the words of a candidate's name.
+
+    No embeddings and no LLM: names are exact strings, so a direct lookup is faster and more
+    reliable than semantic search. Returns candidates sorted by how many name words matched.
+    """
+    stopwords = {"the", "and", "candidate", "named", "name", "with", "for", "from", "cv", "resume", "profile"}
+    tokens = [t for t in re.findall(r"[a-zà-ÿ]+", (name or "").lower()) if len(t) > 2 and t not in stopwords]
+    if not tokens:
+        return []
+
+    index_path = index_path or settings.faiss_index_path
+    vector_store = vector_store or load_faiss_index(index_path=index_path)
+
+    best: dict = {}
+    for _, doc in vector_store.docstore._dict.items():
+        doc_id = doc.metadata.get("document_id")
+        if not doc_id:
+            continue
+        file_name = doc.metadata.get("file_name") or ""
+        haystack = file_name.lower().replace("_", " ")
+        if (doc.metadata.get("chunk_index") or 0) == 0:
+            haystack += " " + doc.page_content[:200].lower()  # the CV header usually starts with the name
+        score = sum(1 for t in tokens if re.search(rf"\b{re.escape(t)}\b", haystack))
+        if score > best.get(doc_id, {}).get("matched_words", 0):
+            best[doc_id] = {"document_id": doc_id, "file_name": file_name, "matched_words": score}
+
+    return sorted(best.values(), key=lambda m: m["matched_words"], reverse=True)
 
 
 # ── Main Retrieve Documents Pipline ─────────────────
