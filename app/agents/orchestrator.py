@@ -1,4 +1,3 @@
-
 from typing import Annotated, TypedDict
 import asyncio
 import time
@@ -11,6 +10,8 @@ from app.agents import (
     )
 from langgraph.graph.message import add_messages
 from app.services.llm_service import initialize_llm
+from app.services.guardrails import remove_verdicts
+from app.services.retriever import find_documents_by_name, get_document_by_name
 from langchain_core.tools import tool
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph, END
@@ -53,28 +54,24 @@ def extract_candidate_info(document_id: str) -> str:
 def find_document_id(candidate_name_or_descriptions: str) -> str:
     """ Find a candidate's document_id by their name or a description of them. Use this BEFORE extract_candidate_profile when you only have a name, not an ID - this is the kind of multi-step chain that requires genuine reasoning: look up the ID, THEN use it in a follow-up call """
 
-    agent = get_recruiter_agent()
-    results = agent.run(question=f"Find the document_id for the candidate with the following name or description: {candidate_name_or_descriptions}")
+    matches = find_documents_by_name(candidate_name_or_descriptions)
+    if matches and matches[0]["matched_words"] > 0:
+        top = matches[0]
+        tied = [m for m in matches if m["matched_words"] == top["matched_words"]]
+        if len(tied) > 1:
+            options = ", ".join(f"{m['document_id']} ({m['file_name']})" for m in tied)
+            return f"Several documents match '{candidate_name_or_descriptions}': {options}. Ask the user which one."
+        return f"Found document_id: {top['document_id']} for candidate: {candidate_name_or_descriptions} (file_name: {top['file_name']})"
 
-    if not results.get("sources"):
+    # Not a name (e.g. "the frontend engineer from Toronto"): fall back to semantic search.
+    doc_id = get_document_by_name(candidate_name_or_descriptions)
+    if not doc_id:
         return f"No document_id found for candidate: {candidate_name_or_descriptions}"
-
-    top_sources = results["sources"][0]
-    doc_id = top_sources.get("document_id")
-    file_name = top_sources.get("file_name", "N/A")
-
-    # sanity check: does the matched file_name plausibly relate to what was asked? This won't catch every misrank, but it catches the clearest cases where semantic search returned something unrelate
-
-    name_tokens = candidate_name_or_descriptions.lower().split()
-    file_name_tokens = file_name.lower()
-    plausible_match = any(token in file_name_tokens for token in name_tokens if len(token) > 2)
-
-    if not plausible_match:
-        logger.warning(f"Autnomous Agent | find_document_id: The top source file_name '{file_name}' does not seem to match the candidate name/description '{candidate_name_or_descriptions}'.")
-
-        return f"Found possible matched document (document_id: {doc_id}, file_name: {file_name})," f" but file name does not match what was asked. Please verify the document_id before using it in extract_candidate_info"
-
-    return f"Found document_id: {doc_id} for candidate: {candidate_name_or_descriptions} (file_name: {file_name})"
+    logger.warning(f"AutonomousAgent | find_document_id: no name match, semantic guess {doc_id}")
+    return (
+        f"Possible match (semantic search, not a name match): document_id {doc_id}. "
+        f"Verify it before using it in extract_candidate_info."
+    )
 
 @tool
 def ask_about_candidate(questions: str) -> str:
@@ -105,6 +102,54 @@ You are an autonomous recruiting assistant with access to tools. Reason step by 
 appropriate tool next - do not guess or fabricate an ID or a result.
 5. Never state a hiring recommendation or declare one candidate "best" - report evidence only, the human recruiter decides.
 """
+
+def _final_answer(content: str) -> str:
+    """Enforce the no-verdict rule on the agent's final answer, in code (not only in the prompt)."""
+    clean, removed = remove_verdicts(content or "")
+    if removed:
+        logger.warning("AutonomousAgent | guardrail removed a hiring verdict from the final answer")
+    return clean
+
+
+FINAL_ANSWER_INSTRUCTION = (
+    "Stop calling tools now. Using ONLY the tool results above, give the user your final answer. "
+    "Report evidence only; never declare a best candidate."
+)
+
+
+def _tool_results_summary(messages: list, max_chars: int = 1500) -> str:
+    """Deterministic fallback: the latest tool results, so the user is never left with an empty answer."""
+    results = [m.content for m in messages if isinstance(m, ToolMessage) and m.content]
+    if not results:
+        return "The agent stopped without a final answer and no tool returned results. Please rephrase the request."
+    text = "\n\n".join(results[-3:])
+    return "The agent reached its step limit. Latest tool results:\n\n" + text[:max_chars]
+
+
+def _resolve_final_answer(messages: list) -> str:
+    """Return a non-empty final answer even when the agent stopped mid-way.
+
+    The graph can end with an empty message or with unanswered tool calls (step limit).
+    In that case, ask the LLM once more WITHOUT tools to answer from the tool results it
+    already has; if that fails too, fall back to the raw tool results.
+    """
+    last = messages[-1]
+    content = (getattr(last, "content", "") or "").strip()
+    if content and not getattr(last, "tool_calls", None):
+        return _final_answer(content)
+
+    logger.warning("AutonomousAgent | no final answer (step limit or empty reply), synthesising from tool results")
+    # Drop a trailing message whose tool calls were never executed: the API rejects unanswered tool calls.
+    history = messages[:-1] if getattr(last, "tool_calls", None) else list(messages)
+    try:
+        reply = initialize_llm(temperature=0.0).invoke(history + [HumanMessage(content=FINAL_ANSWER_INSTRUCTION)])
+        text = (getattr(reply, "content", "") or "").strip()
+        if text:
+            return _final_answer(text)
+    except Exception as exc:
+        logger.error(f"AutonomousAgent | final synthesis failed: {exc}")
+    return _final_answer(_tool_results_summary(messages))
+
 
 class AgentState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
@@ -169,7 +214,7 @@ def should_continue(state: AgentState) -> str:
         return "continue"
     return "end"
 
-def build_autnomous_agent(require_human_approval: bool = False):
+def build_autonomous_agent(require_human_approval: bool = False):
     """Builds the autonomous agent with the specified configuration, including whether human approval is required"""
     graph = StateGraph(AgentState)
     graph.add_node("agent", agent_node)
@@ -204,14 +249,14 @@ def _get_compiled_graph(require_human_approval: bool):
     global _compiled_graph_with_approval, _compiled_graph_normal
     if require_human_approval:
         if _compiled_graph_with_approval is None:
-            _compiled_graph_with_approval = build_autnomous_agent(require_human_approval=True)
+            _compiled_graph_with_approval = build_autonomous_agent(require_human_approval=True)
         return _compiled_graph_with_approval
     if _compiled_graph_normal is None:
-        _compiled_graph_normal = build_autnomous_agent(require_human_approval=False)
+        _compiled_graph_normal = build_autonomous_agent(require_human_approval=False)
     return _compiled_graph_normal
 
 
-async def run_autnomous_agent(user_message: str, require_human_approval: bool = False, thread_id: str = None) -> dict:
+async def run_autonomous_agent(user_message: str, require_human_approval: bool = False, thread_id: str = None) -> dict:
     start = time.time()
     app = _get_compiled_graph(require_human_approval)
     config = {"configurable": {"thread_id": thread_id}}
@@ -228,17 +273,17 @@ async def run_autnomous_agent(user_message: str, require_human_approval: bool = 
     pending_tools = getattr(last_message, "tool_calls", None) or []
 
     if require_human_approval and pending_tools:
-        logger.info(f"Autnomous agent has pending tools: {pending_tools} for human review")
+        logger.info(f"Autonomous agent has pending tools: {pending_tools} for human review")
         return {
             "status": "awaiting_approval",
             "pending_tools": pending_tools,
             "thread_id": thread_id,
             "latency_ms": latency
         }
-    logger.info(f"AutnomousAgent | thread_id: {thread_id} | completed in steps {final_results['steps']} | latency: {latency} ms")
+    logger.info(f"AutonomousAgent | thread_id: {thread_id} | completed in steps {final_results['steps']} | latency: {latency} ms")
     return {
         "status": "completed",
-        "results": last_message.content,
+        "results": _resolve_final_answer(final_results["messages"]),
         "steps": final_results['steps'],
         "thread_id": thread_id,
         "latency_ms": latency
@@ -255,7 +300,7 @@ async def approve_pending_action(thread_id: str, require_human_approval: bool = 
     logger.info(f"Approved pending action for thread_id: {thread_id} | latency: {latency} ms")
     return {
         "status": "completed",
-        "results": last_message.content,
+        "results": _resolve_final_answer(final_results["messages"]),
         "steps": final_results['steps'],
         "thread_id": thread_id,
         "latency_ms": latency
