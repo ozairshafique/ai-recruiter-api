@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, List
+from typing import Any, List, Literal, Optional
 from datetime import datetime
 from enum import Enum
 import uuid
@@ -196,6 +196,38 @@ class ErrorResponse(BaseModel):
     class Config:
         use_enum_values = True
 
+# ── Autonomous Agent ─────────────────────────
+
+class AgentRunRequest(BaseModel):
+    message: str = Field(
+        ...,
+        min_length=3,
+        max_length=2000,
+        examples=["Find the top 3 candidates for a junior Python developer with FastAPI and SQL"],
+    )
+    require_human_approval: bool = Field(
+        default=False,
+        description="If true, the agent pauses before every tool call until /agent/approve is called.",
+    )
+    thread_id: Optional[str] = Field(
+        default=None,
+        description="Reuse a thread_id to continue a conversation with memory. A new one is created if empty.",
+    )
+
+
+class AgentApproveRequest(BaseModel):
+    thread_id: str = Field(..., description="thread_id returned by /agent/run with status 'awaiting_approval'")
+
+
+class AgentResponse(BaseModel):
+    status: Literal["completed", "awaiting_approval"]
+    thread_id: str
+    results: Optional[str] = None
+    pending_tools: Optional[list[dict[str, Any]]] = None
+    steps: Optional[int] = None
+    latency_ms: float
+
+
 __all__ = [
     "JobType",
     "ResponseStatus",
@@ -210,4 +242,7 @@ __all__ = [
     "JobMatchResponse",
     "HealthCheck",
     "DocumentDeleteResponse",
-    "ErrorResponse"]
+    "ErrorResponse",
+    "AgentRunRequest",
+    "AgentApproveRequest",
+    "AgentResponse"]

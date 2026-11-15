@@ -1,12 +1,14 @@
-
-#import shutil
 import time
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from app.services.rag_pipeline import run_ingest_pipeline, run_query_pipeline
 from app.schemas.schemas import (
+    AgentApproveRequest,
+    AgentResponse,
+    AgentRunRequest,
     DocumentDeleteResponse,
     UploadResponse,
     QueryRequest,
@@ -14,23 +16,28 @@ from app.schemas.schemas import (
     HealthCheck,
     SourceDocument,
     CandidateProfile,
-    JobMatchResult,
     JobMatchResponse,
     JobMatch,
     ResponseStatus,
-    ErrorResponse,
 )
 from app.services.embeddings import check_faiss_index, load_faiss_index, delete_document_from_index
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.prompt.recuiter_prompt import RECRUITER_SYSTEM_PROMPT
+from app.prompt.recruiter_prompt import RECRUITER_SYSTEM_PROMPT
 from app.agents import get_job_match_agent, get_candidate_extraction_agent
+from app.agents.orchestrator import (
+    _get_compiled_graph,
+    approve_pending_action,
+    run_autonomous_agent,
+)
 from app.core.security import require_api_key
 
 settings = get_settings()
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+PDF_MAGIC = b"%PDF-"
 
 # ── Upload Endpoint ─────────────────
 @router.post(
@@ -43,14 +50,15 @@ router = APIRouter()
 async def upload_resume(file: UploadFile = File(...)) -> UploadResponse:
     """Upload a PDF resume for processing."""
 
-    start_time = time.time()
     document_id = str(uuid.uuid4())
+    # Never trust the client's filename: keep only the base name (blocks "../" path traversal).
+    file_name = Path(file.filename or "cv.pdf").name
 
-    logger.info(f"Received file upload request: {file.filename} with document ID: {document_id}")
+    logger.info(f"Received file upload request: {file_name} with document ID: {document_id}")
 
     # Validate file type and size
-    if not file.filename.endswith(".pdf"):
-        logger.error(f"Unsupported file type: {file.filename}")
+    if not file_name.lower().endswith(".pdf"):
+        logger.error(f"Unsupported file type: {file_name}")
         raise HTTPException(
             status_code=400,
             detail="Unsupported file type. Only PDF files are allowed."
@@ -58,37 +66,41 @@ async def upload_resume(file: UploadFile = File(...)) -> UploadResponse:
 
     contents = await file.read()
     if len(contents) > 10 * 1024 * 1024:  # 10 MB limit
-        logger.error(f"File size exceeds limit: {file.filename} with size {len(contents)} bytes")
+        logger.error(f"File size exceeds limit: {file_name} with size {len(contents)} bytes")
         raise HTTPException(
             status_code=400,
             detail="File size exceeds the 10 MB limit."
         )
+    if not contents.startswith(PDF_MAGIC):
+        raise HTTPException(status_code=400, detail="The file is not a valid PDF.")
 
-    # Save file to temporary location
+    # Save file to temporary location (path built server-side, user filename not used)
     temp_dir = Path("data/temp")
     temp_dir.mkdir(parents=True, exist_ok=True)
-    temp_path = temp_dir / f"{document_id}_{file.filename}"
+    temp_path = temp_dir / f"{document_id}.pdf"
     try:
         with open(temp_path, "wb") as f:
             f.write(contents)
 
-        result = run_ingest_pipeline(
+        # PDF parsing + embeddings are blocking: run them off the event loop
+        result = await run_in_threadpool(
+            run_ingest_pipeline,
             file_path=str(temp_path),
-            file_name=file.filename,
+            file_name=file_name,
             document_id=document_id,
         )
 
-        logger.info(f"File processed successfully: {file.filename} with chunks{result['chunks']} document ID: {document_id} ")
+        logger.info(f"File processed successfully: {file_name} with chunks {result['chunks']} document ID: {document_id}")
 
         return UploadResponse(
             status=ResponseStatus.SUCCESS,
             message="File uploaded and processed successfully",
             document_id=document_id,
             chunks=result["chunks"],
-            filename=file.filename
+            filename=file_name
             )
     except Exception as e:
-        logger.error(f"Error processing file: {file.filename} with document ID: {document_id} - {e}")
+        logger.error(f"Error processing file: {file_name} with document ID: {document_id} - {e}")
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred while processing the file: {str(e)}"
@@ -112,7 +124,6 @@ async def upload_resume(file: UploadFile = File(...)) -> UploadResponse:
 async def query_documents(request: QueryRequest) -> QueryResponse:
     """ Query the uploaded documents for answers """
 
-    start_time = time.time()
     logger.info(f"Received query request: {request.question[:50] }... with top_k: {request.top_k}")
 
     if not check_faiss_index():
@@ -121,13 +132,14 @@ async def query_documents(request: QueryRequest) -> QueryResponse:
             detail="No documents found. Please upload a resume before querying."
             )
     try:
-        result = run_query_pipeline(
+        # Retrieval + LLM call are blocking: run them off the event loop
+        result = await run_in_threadpool(
+            run_query_pipeline,
             query = request.question,
             top_k = request.top_k,
             document_id = request.document_id,
             system_prompt = RECRUITER_SYSTEM_PROMPT,
             )
-        latency = round((time.time() - start_time) * 1000, 2)
 
         sources = [
             SourceDocument(
@@ -229,6 +241,103 @@ def get_candidate_profile(document_id: str) -> CandidateProfile:
             status_code=500,
             detail=f"An error occurred while extracting the candidate profile: {str(e)}",
         )
+
+# ── Autonomous Agent Endpoints (LangGraph orchestrator) ─────────────────
+# A tool-calling agent decides which tools to use (match candidates, find a document,
+# extract a profile, ask about a candidate), reads each result and chains the next step.
+# It reports evidence only: the human recruiter makes the hiring decision.
+
+def _public_tool_calls(tool_calls: list) -> list[dict[str, Any]]:
+    """Show the recruiter what the agent wants to do: tool name + arguments only."""
+    return [{"tool": call.get("name"), "args": call.get("args", {})} for call in tool_calls]
+
+
+@router.post(
+    "/agent/run",
+    response_model=AgentResponse,
+    summary="Run the Autonomous Recruiting Agent",
+    description="LangGraph tool-calling agent that chains the recruiting agents to answer a request. "
+    "With require_human_approval=true it pauses before executing any tool (human-in-the-loop).",
+    tags=["Agent"],
+)
+async def run_agent(request: AgentRunRequest) -> AgentResponse:
+    """Run the autonomous agent, optionally pausing for human approval."""
+
+    logger.info(f"Received agent request: {request.message[:60]}... | approval={request.require_human_approval}")
+
+    if not check_faiss_index():
+        raise HTTPException(
+            status_code=404,
+            detail="No documents found. Please upload a resume first.",
+        )
+
+    # The checkpointer needs a thread_id to store the conversation memory
+    thread_id = request.thread_id or str(uuid.uuid4())
+    try:
+        result = await run_autonomous_agent(
+            user_message=request.message,
+            require_human_approval=request.require_human_approval,
+            thread_id=thread_id,
+        )
+    except Exception as e:
+        logger.error(f"Error running agent for thread_id: {thread_id} - {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="The agent could not complete the request. Please try again.",
+        )
+
+    if result["status"] == "awaiting_approval":
+        return AgentResponse(
+            status="awaiting_approval",
+            thread_id=thread_id,
+            pending_tools=_public_tool_calls(result["pending_tools"]),
+            latency_ms=result["latency_ms"],
+        )
+    return AgentResponse(**result)
+
+
+@router.post(
+    "/agent/approve",
+    response_model=AgentResponse,
+    summary="Approve Pending Agent Actions",
+    description="Human-in-the-loop: approve the tool calls of a paused thread and resume the agent. "
+    "It may pause again if the agent plans more tool calls.",
+    tags=["Agent"],
+)
+async def approve_agent(request: AgentApproveRequest) -> AgentResponse:
+    """Resume a paused agent thread after human approval."""
+
+    graph = _get_compiled_graph(require_human_approval=True)
+    config = {"configurable": {"thread_id": request.thread_id}}
+
+    state = await graph.aget_state(config)
+    if not state or not state.next:
+        raise HTTPException(
+            status_code=404,
+            detail="No action is waiting for approval on this thread_id.",
+        )
+
+    try:
+        result = await approve_pending_action(thread_id=request.thread_id)
+    except Exception as e:
+        logger.error(f"Error approving agent action for thread_id: {request.thread_id} - {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="The agent could not resume this thread. Please try again.",
+        )
+
+    # After resuming, the agent may plan new tool calls and pause again
+    new_state = await graph.aget_state(config)
+    if new_state.next:
+        last_message = new_state.values["messages"][-1]
+        return AgentResponse(
+            status="awaiting_approval",
+            thread_id=request.thread_id,
+            pending_tools=_public_tool_calls(getattr(last_message, "tool_calls", None) or []),
+            steps=new_state.values.get("steps"),
+            latency_ms=result["latency_ms"],
+        )
+    return AgentResponse(**result)
 
 # ── Health Check Endpoint ───────────
 @router.get(
