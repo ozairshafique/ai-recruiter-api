@@ -1,0 +1,11 @@
+# Development, tests and evaluation (not installed in the Docker image)
+-r requirements.txt
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=1.4.0
+pytest-cov>=5.0.0
+
+# Evaluation (tests/evaluation)
+deepeval>=3.0.0
+datasets>=2.19.0
