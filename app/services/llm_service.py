@@ -4,16 +4,28 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.prompt.recruiter_prompt import RECRUITER_SYSTEM_PROMPT
 
 settings = get_settings()
 logger = get_logger(__name__)
 
 # ── Initialize LLM ────────────────
-def initialize_llm(temperature: float = None, max_tokens: int = 1024) -> ChatGroq:
+
+TRUNCATED_ANSWER_NOTE = (
+    "[Answer truncated: it reached the length limit. Ask a more specific question for complete details.]"
+)
+
+EMPTY_ANSWER_FALLBACK = (
+    "The model could not produce an answer for this question. "
+    "Please try a more specific question, for example about one skill or one candidate."
+)
+
+def initialize_llm(temperature: float = None, max_tokens: Optional[int] = None) -> ChatGroq:
     """ Initialize the LLM with the given parameters """
 
     try:
         temperature = temperature if temperature is not None else settings.temperature
+        max_tokens = max_tokens or settings.llm_max_tokens
         logger.info(f"Initializing LLM | Model: {settings.groq_model} | Temperature: {temperature}")
         llm = ChatGroq(
             api_key=settings.groq_api_key,
@@ -55,28 +67,7 @@ def generate_answer(question: str, context: str, llm: ChatGroq = None, system_pr
     """
 
     llm = llm or initialize_llm()
-    system_prompt = system_prompt or """
-You are an expert AI recruiter assistant.
-Answer questions based on ONLY the provided context.
-You MUST follow this EXACT format — never write in paragraphs:
-
-Candidate: [Full Name]
-
-[Skill/Technology]: ✅ Found
-- [specific evidence point]
-- [specific evidence point]
-
-[Skill/Technology]: ❌ Not found in documents
-
-STRICT RULES:
-- Always start with "Candidate: [name]" on its own line
-- Always put each skill section on its own line
-- Always use bullet points (•) for evidence
-- Never write in one long paragraph
-- Never combine everything into one sentence
-- If not found write "❌ Not found in documents"
-- Only use information from the provided context
-"""
+    system_prompt = system_prompt or RECRUITER_SYSTEM_PROMPT
 
     try:
         logger.info(f"Generating answer | Question: {question[:50]}")
@@ -92,6 +83,15 @@ STRICT RULES:
             })
 
         answer = response.content # Extract the content from the response
+        if not (answer or "").strip():
+            finish_reason =  (getattr(response, "response_metadata", None) or {}).get("finish_reason")
+            logger.warning(f"Empty answer from LLM | finish_reason: {finish_reason} | Question: {question[:50]}")
+            return EMPTY_ANSWER_FALLBACK
+        finish_reason = (getattr(response, "response_metadata", None) or {}).get("finish_reason")
+        if finish_reason == "length":
+            # Never present a cut-off answer as complete: say so explicitly.
+            logger.warning(f"Answer truncated at max_tokens | Question: {question[:50]}")
+            answer = f"{answer.rstrip()}\n\n{TRUNCATED_ANSWER_NOTE}"
         logger.info(f"Answer generated successfully | length: {len(answer)} characters")
         return answer
 

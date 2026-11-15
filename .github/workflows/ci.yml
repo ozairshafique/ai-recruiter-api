@@ -29,13 +29,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
+          pip install -r requirements-dev.txt
           pip install pytest-cov
 
       - name: Run tests with coverage
@@ -202,7 +203,7 @@ jobs:
 
           # 🤖 AI Recruiter API
 
-          Production-grade RAG API for intelligent CV analysis and candidate querying.
+          RAG + multi-agent API for CV analysis, candidate matching and recruiter Q&A.
 
           ### Links
           - 🎨 **Frontend:** [ai-recruiter-frontend-khaki.vercel.app](https://ai-recruiter-frontend-khaki.vercel.app)
@@ -210,7 +211,7 @@ jobs:
           - 💻 **GitHub:** [ozairshafique/ai-recruiter-api](https://github.com/ozairshafique/ai-recruiter-api)
 
           ### Stack
-          FastAPI · LangChain · FAISS · Cohere · LLaMA 3.3 70B · Docker
+          FastAPI · LangChain · FAISS · Cohere · gpt-oss-120b (Groq) · Docker
           HFEOF
 
       - name: Deploy to HuggingFace Spaces

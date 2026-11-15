@@ -5,7 +5,7 @@ from typing import Optional
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.prompt.recuiter_prompt import get_candidate_extraction_prompt
+from app.prompt.recruiter_prompt import get_candidate_extraction_prompt
 from app.schemas.schemas import CandidateProfile, ExperienceLevel, JobType
 from app.services.llm_service import initialize_llm
 from app.services.retriever import retrieve

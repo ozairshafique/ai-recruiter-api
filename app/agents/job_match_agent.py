@@ -12,9 +12,10 @@ import asyncio
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.services.retriever import retrieve, get_all_document_ids
-from app.prompt.recuiter_prompt import get_job_match_prompt
+from app.prompt.recruiter_prompt import get_job_match_prompt
 from app.schemas.schemas import JobMatchResult
 from app.services.llm_service import initialize_llm
+from app.services.guardrails import remove_verdicts
 
 settings = get_settings()
 logger = get_logger(__name__)
@@ -89,6 +90,7 @@ class JobMatchAgent:
             candidate_experience_level = data.get("candidate_experience_level") or None
 
             summary = str(data.get("summary", "")).strip() or raw[:200].strip()
+            summary, _ = remove_verdicts(summary, add_note=False)  # scores inform, they never decide
 
             score, cap_note = _apply_experience_level_filter(score, candidate_experience_level, required_experience_level)
             if cap_note:

@@ -1,11 +1,8 @@
-
-import pytest
 import os
-from pathlib import Path
-from fastapi.testclient import TestClient
-from app.main import app
-from unittest.mock import patch, MagicMock
 
+# Test settings MUST be set before any `app` import: get_settings() is cached at first use,
+# and importing app.main first would load your real .env (real API keys and the real
+# ./faiss_index), so tests would call paid APIs and write test documents into your data.
 os.environ["GROQ_API_KEY"]            = "test_groq_key"
 os.environ["COHERE_API_KEY"]          = "test_cohere_key"
 os.environ["LANGCHAIN_API_KEY"]       = "test_langchain_key"
@@ -16,6 +13,12 @@ os.environ["FAISS_INDEX_PATH"]        = "./test_faiss_index"
 os.environ["CHUNK_SIZE"]             = "500"
 os.environ["CHUNK_OVERLAP"]          = "50"
 os.environ["TOP_K"]                 = "5"
+
+import pytest
+from pathlib import Path
+from fastapi.testclient import TestClient
+from app.main import app
+from unittest.mock import patch, MagicMock
 
 
 # ── Test Client ──────────────────────

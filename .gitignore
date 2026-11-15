@@ -91,3 +91,9 @@ node_modules/
 
 # Secrets (uncomment if you use these files)
 # config/.secret
+
+# Sample CVs used by the end-to-end evaluation (no real personal data)
+!tests/evaluation/data/
+
+# Index created by the test suite
+test_faiss_index
