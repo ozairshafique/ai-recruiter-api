@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
-const METRICS = [
+// Fallback shown until tests/evaluation/run_real_evaluation.py has produced
+// frontend/public/evaluation_results.json (hand-written sample set, 3 cases).
+const SAMPLE_METRICS = [
   {
     label: "Answer Relevancy",
     score: 0.94,
@@ -36,7 +38,7 @@ const STACK = [
   },
   {
     layer: "LLM",
-    tech: "LLaMA 3.3 70B via Groq",
+    tech: "gpt-oss-120b via Groq",
     color: "var(--green)",
     bg: "var(--green-light)",
   },
@@ -117,7 +119,34 @@ function ScoreBar({ score, threshold }) {
   );
 }
 
+const METRIC_INFO = {
+  answer_relevancy: { label: "Answer Relevancy", desc: "How relevant the answer is to the query" },
+  faithfulness: { label: "Faithfulness", desc: "Answer is grounded in retrieved context" },
+  contextual_recall: { label: "Contextual Recall", desc: "Retrieved chunks cover the right content" },
+  contextual_precision: { label: "Contextual Precision", desc: "Retrieved chunks are precise and relevant" },
+};
+
+function metricsFromReport(summary) {
+  const threshold = summary.deepeval_threshold ?? 0.7;
+  return Object.entries(summary.deepeval || {})
+    .filter(([key, score]) => METRIC_INFO[key] && typeof score === "number")
+    .map(([key, score]) => ({ ...METRIC_INFO[key], score, threshold }));
+}
+
 export default function Analytics() {
+  const [report, setReport] = useState(null);
+
+  useEffect(() => {
+    fetch(`${process.env.PUBLIC_URL || ""}/evaluation_results.json`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => data && data.summary && setReport(data.summary))
+      .catch(() => {});
+  }, []);
+
+  const realMetrics = report ? metricsFromReport(report) : [];
+  const METRICS = realMetrics.length ? realMetrics : SAMPLE_METRICS;
+  const isReal = realMetrics.length > 0;
+
   const avg = (
     METRICS.reduce((a, m) => a + m.score, 0) / METRICS.length
   ).toFixed(2);
@@ -133,8 +162,9 @@ export default function Analytics() {
           Analytics
         </h1>
         <p style={{ color: "var(--text2)", fontSize: 14 }}>
-          RAG evaluation results from DeepEval. All metrics exceed the 0.7
-          threshold.
+          {isReal
+            ? `End-to-end evaluation of the live pipeline: ${report.questions} golden questions over ${report.cvs} sample CVs, judged by ${report.judge_model}. Deterministic checks passed: ${report.checks_passed}/${report.questions}; guardrail pass rate: ${Math.round((report.guardrail_pass_rate ?? 0) * 100)}%.`
+            : "DeepEval metric setup validated on a small hand-written sample set (3 cases). End-to-end results appear here once the real evaluation has run."}
         </p>
       </div>
 
@@ -371,8 +401,9 @@ export default function Analytics() {
           textAlign: "center",
         }}
       >
-        Evaluation run with DeepEval · Model: llama-3.3-70b-versatile ·
-        Embeddings: Cohere embed-multilingual-v3.0
+        {isReal
+          ? `Evaluated ${report.evaluated_at.slice(0, 10)} · Generator: ${report.generator_model} · Judge: ${report.judge_model} · Prompt v${report.prompt_version} · Embeddings: ${report.embeddings}`
+          : "Evaluation framework: DeepEval (sample set) · Model: gpt-oss-120b · Embeddings: Cohere embed-multilingual-v3.0"}
       </p>
     </div>
   );
