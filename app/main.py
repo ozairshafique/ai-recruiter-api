@@ -69,10 +69,11 @@ A RAG-powered API for intelligent CV analysis and job matching.
 - 📄 **PDF Upload** — Upload and index CV documents
 - 🔍 **Smart Query** — Ask questions about uploaded CVs
 - 🎯 **Job Matching** — Match candidates to job descriptions
+- 🤖 **Autonomous Agent** — LangGraph tool-calling agent with human-in-the-loop approval
 - 📊 **LangSmith Tracing** — Full LLMOps observability
 
 ### Tech Stack
-- **LLM**: Groq (LLaMA 3.3 70B)
+- **LLM**: Groq (gpt-oss-120b)
 - **Embeddings**: Cohere
 - **Vector Store**: FAISS
 - **Framework**: LangChain + LangGraph
