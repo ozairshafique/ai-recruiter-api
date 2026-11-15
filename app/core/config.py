@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     groq_api_key: str
     groq_model: str = "openai/gpt-oss-120b"
     temperature: float = 0.0
+    # gpt-oss models reason before answering, and reasoning tokens count toward max_tokens:
+    # a small budget can be used up by reasoning and leave an empty answer.
+    llm_max_tokens: int = 4096
+    llm_reasoning_effort: Optional[str] = "low"  # low | medium | high (gpt-oss models only)
 
     # Cohere API settings
     cohere_api_key: str
