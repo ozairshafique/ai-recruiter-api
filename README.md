@@ -1,6 +1,7 @@
 # 🤖 AI Recruiter API
 
 <div align="center">
+
 ![CI/CD Pipeline](https://github.com/ozairshafique/ai-recruiter-api/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
@@ -19,7 +20,9 @@
 
 > **Note:** Live demo runs on HuggingFace free tier. If the API shows offline, wait 30 seconds and refresh.
 
-## </div>
+</div>
+
+---
 
 ## What It Does
 
@@ -112,21 +115,25 @@ python -m app.mcp_server --http --port 8001 # HTTP on 127.0.0.1 (local only)
 <div align="center">
   <img src="images/uploadcvs.png" alt="Upload CV" width="100%"/>
 </div>
+
 ### Query Candidates — Multi-CV Comparison
 
 <div align="center">
   <img src="images/query_results.png" alt="Query Results" width="100%"/>
 </div>
+
 ### Documents
 
 <div align="center">
   <img src="images/documents.png" alt="Documents" width="100%"/>
 </div>
+
 ### Analytics — Evaluation Results
 
 <div align="center">
   <img src="images/analytics.png" alt="Analytics" width="100%"/>
 </div>
+
 ---
 
 ## Business Value
@@ -147,8 +154,10 @@ python -m app.mcp_server --http --port 8001 # HTTP on 127.0.0.1 (local only)
 <div align="center">
   <img src="images/architecturediagrams_v2.png" alt="AI Recruiter API — System Architecture" width="100%"/>
 </div>
+
 <details>
 <summary>Editable version (Mermaid)</summary>
+
 ```mermaid
 flowchart TB
     C["Client<br/>React (Vercel) · Swagger UI"]
@@ -180,15 +189,15 @@ flowchart TB
     F --> RET --> GEN --> GR
     GEN -.-> LS
     EV -.->|runs the real query pipeline| Q
-
 ```
 
 </details>
-| Flow       | Steps                                                                                                  |
-| ---------- | ------------------------------------------------------------------------------------------------------ |
-| **Upload** | PDF → text extraction → chunking → Cohere embeddings → FAISS index                                     |
+
+| Flow       | Steps                                                                                                                         |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Upload** | PDF → text extraction → chunking → Cohere embeddings → FAISS index                                                            |
 | **Query**  | Question → balanced retrieval (chunks per candidate) → prompt v2.0.0 → gpt-oss-120b (Groq) → guardrails → answer with sources |
-| **Agent**  | Request → LangGraph orchestrator → tool calls to the agents (optional human approval) → final answer   |
+| **Agent**  | Request → LangGraph orchestrator → tool calls to the agents (optional human approval) → final answer                          |
 
 LangSmith traces both flows. Output quality is measured end to end (see RAG Evaluation).
 
@@ -201,16 +210,17 @@ LangSmith traces both flows. Output quality is measured end to end (see RAG Eval
 <div align="center">
   <img src="images/layeroverviews_v2.png" alt="AI Recruiter API — Layer Overview" width="90%"/>
 </div>
-| Layer | Components | Code |
-| --- | --- | --- |
-| Client | React frontend (Vercel), Swagger UI | `frontend/` |
-| API | FastAPI + Pydantic schemas, upload checks, admin key for delete/reset | `app/api/routes.py`, `app/schemas/` |
-| Agents | LangGraph orchestrator, RecruiterAgent, JobMatchAgent, CandidateExtractionAgent | `app/agents/` |
-| RAG | ingestion, embeddings, balanced retrieval, LLM service, guardrails | `app/services/` |
-| Prompt | versioned recruiter system prompt (v2.0.0) | `app/prompt/recruiter_prompt.py` |
-| Storage | FAISS index (vectors + metadata) | `faiss_index/` (git-ignored) |
-| MCP | read-only MCP tools over the same agents | `app/mcp_server.py` |
-| Quality | pytest suite, end-to-end evaluation, LangSmith tracing | `tests/`, `tests/evaluation/` |
+
+| Layer   | Components                                                                      | Code                                |
+| ------- | ------------------------------------------------------------------------------- | ----------------------------------- |
+| Client  | React frontend (Vercel), Swagger UI                                             | `frontend/`                         |
+| API     | FastAPI + Pydantic schemas, upload checks, admin key for delete/reset           | `app/api/routes.py`, `app/schemas/` |
+| Agents  | LangGraph orchestrator, RecruiterAgent, JobMatchAgent, CandidateExtractionAgent | `app/agents/`                       |
+| RAG     | ingestion, embeddings, balanced retrieval, LLM service, guardrails              | `app/services/`                     |
+| Prompt  | versioned recruiter system prompt (v2.0.0)                                      | `app/prompt/recruiter_prompt.py`    |
+| Storage | FAISS index (vectors + metadata)                                                | `faiss_index/` (git-ignored)        |
+| MCP     | read-only MCP tools over the same agents                                        | `app/mcp_server.py`                 |
+| Quality | pytest suite, end-to-end evaluation, LangSmith tracing                          | `tests/`, `tests/evaluation/`       |
 
 ---
 
@@ -219,18 +229,16 @@ LangSmith traces both flows. Output quality is measured end to end (see RAG Eval
 GitHub Actions (`.github/workflows/ci.yml`):
 
 ```
-
 Push to main / develop, or pull request to main
-↓
-Job 1 — Tests ← pytest with coverage on every push and PR; failure stops the pipeline
-↓ (jobs 2 and 3 run only on main when the commit message contains "deploy")
-Job 2 — Docker ← docker build, start the container, GET /api/v1/health must succeed, image size check
-↓
-Job 3 — Deploy ← push the app to Hugging Face Spaces
-↓
+        ↓
+Job 1 — Tests        ← pytest with coverage on every push and PR; failure stops the pipeline
+        ↓            (jobs 2 and 3 run only on main when the commit message contains "deploy")
+Job 2 — Docker       ← docker build, start the container, GET /api/v1/health must succeed, image size check
+        ↓
+Job 3 — Deploy       ← push the app to Hugging Face Spaces
+        ↓
 Live on Hugging Face Spaces
-
-````
+```
 
 > Deployment only triggers on `main` when the commit message contains `deploy`, preventing accidental deploys from documentation or test commits.
 
@@ -241,7 +249,9 @@ Live on Hugging Face Spaces
 <div align="center">
   <img src="images/langsmithsoverviews.png" alt="LangSmith Traces — AI Recruiter API" width="100%"/>
 </div>
+
 <br/>
+
 LLM observability via LangSmith — every RAG query and evaluation run traced with latency, token usage, and execution flow.
 
 | Trace Type         | What It Shows                               |
@@ -262,11 +272,12 @@ LLM observability via LangSmith — every RAG query and evaluation run traced wi
 2. Asks 22 golden questions (`tests/evaluation/golden_dataset.json`) through the real retrieval, prompt, LLM and guardrails.
 3. Scores every answer with **deterministic checks** (per-candidate found / not-found accuracy, required facts, no hiring verdicts, prompt-injection resistance, off-topic refusal) and **DeepEval LLM-as-a-judge** metrics. The judge uses structured (JSON-mode) outputs.
 4. Saves `evaluation_results.json`, which the Analytics page displays.
+
 ```bash
 pip install -r requirements-dev.txt                         # tests + DeepEval (not in the Docker image)
 python -m tests.evaluation.run_real_evaluation               # full run
 python -m tests.evaluation.run_real_evaluation --no-deepeval # deterministic checks only (fast, no judge tokens)
-````
+```
 
 ### Results (16 Nov 2026 · gpt-oss-120b · top_k 12 · prompt v2.0.0 · dataset v1.1.0)
 
@@ -301,7 +312,8 @@ The one failed check is a string-match miss: the answer correctly says "Google C
 - **Same-family judge.** The cross-family judge (llama-3.3-70b) was retired from the Groq free tier in August 2026, so the judge is gpt-oss-20b, from the same family as the generator. Its scores are also noisy: some correct answers got low relevancy or zero context scores. The deterministic checks are the primary metric.
 - **Low contextual precision is a design trade-off.** Retrieval takes a fixed number of chunks per candidate so that every candidate is checked (per-candidate accuracy 1.00). Irrelevant chunks from other candidates lower precision. A re-ranker (e.g. Cohere Rerank) is the next step.
 - **Small, clean dataset.** 4 CVs written for testing; real CVs are messier.
-  **Findings the evaluation surfaced**
+
+**Findings the evaluation surfaced**
 
 - In one comparative answer the model computed a candidate's experience from role dates (~5 years) instead of using the stated 6 years, and gave a previous role as the "current role".
 - In a few answers the model labelled a candidate with the PDF file name instead of the person's name.
