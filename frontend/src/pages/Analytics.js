@@ -120,10 +120,22 @@ function ScoreBar({ score, threshold }) {
 }
 
 const METRIC_INFO = {
-  answer_relevancy: { label: "Answer Relevancy", desc: "How relevant the answer is to the query" },
-  faithfulness: { label: "Faithfulness", desc: "Answer is grounded in retrieved context" },
-  contextual_recall: { label: "Contextual Recall", desc: "Retrieved chunks cover the right content" },
-  contextual_precision: { label: "Contextual Precision", desc: "Retrieved chunks are precise and relevant" },
+  answer_relevancy: {
+    label: "Answer Relevancy",
+    desc: "How relevant the answer is to the query",
+  },
+  faithfulness: {
+    label: "Faithfulness",
+    desc: "Answer is grounded in retrieved context",
+  },
+  contextual_recall: {
+    label: "Contextual Recall",
+    desc: "Retrieved chunks cover the right content",
+  },
+  contextual_precision: {
+    label: "Contextual Precision",
+    desc: "Retrieved chunks are precise and relevant",
+  },
 };
 
 function metricsFromReport(summary) {
@@ -307,16 +319,23 @@ export default function Analytics() {
                 </span>
                 <span
                   style={{
-                    background: "var(--green-light)",
-                    color: "var(--green)",
-                    border: "1px solid #b7ddc8",
+                    background:
+                      m.score >= m.threshold
+                        ? "var(--green-light)"
+                        : "var(--red-light)",
+                    color:
+                      m.score >= m.threshold ? "var(--green)" : "var(--red)",
+                    border:
+                      m.score >= m.threshold
+                        ? "1px solid #b7ddc8"
+                        : "1px solid #f5c2c2",
                     padding: "2px 8px",
                     borderRadius: 20,
                     fontSize: 11,
                     fontWeight: 500,
                   }}
                 >
-                  ✓ Pass
+                  {m.score >= m.threshold ? "✓ Pass" : "✗ Below threshold"}
                 </span>
               </div>
             </div>
