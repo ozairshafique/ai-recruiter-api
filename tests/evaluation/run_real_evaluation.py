@@ -41,7 +41,9 @@ RESULTS_PATHS = [
     REPO_ROOT / "frontend" / "public" / "evaluation_results.json",
 ]
 
-DEFAULT_JUDGE_MODEL = "llama-3.3-70b-versatile"
+DEFAULT_JUDGE_MODEL = "openai/gpt-oss-20b"
+JUDGE_MAX_TOKENS = int(os.getenv("EVAL_JUDGE_MAX_TOKENS", "4096"))
+TRUTHS_LIMIT = int(os.getenv("EVAL_TRUTHS_LIMIT", "30"))
 METRIC_THRESHOLD = 0.7
 PAUSE_SECONDS = float(os.getenv("EVAL_PAUSE_SECONDS", "2"))  # stay under Groq free-tier rate limits
 
@@ -146,15 +148,28 @@ def build_metrics(judge_model: str):
     class GroqJudge(DeepEvalBaseLLM):
         def __init__(self, model_name: str):
             self.model_name = model_name
-            self.model = ChatGroq(api_key=os.environ["GROQ_API_KEY"], model=model_name, temperature=0.0)
+            kwargs = {"temperature": 0.0, "max_tokens": JUDGE_MAX_TOKENS}
+            if "gpt-oss" in model_name:
+                kwargs["reasoning_effort"] = "low"
+            self.model = ChatGroq(api_key=os.environ["GROQ_API_KEY"], model=model_name, **kwargs)
 
         def load_model(self):
             return self.model
 
-        def generate(self, prompt: str) -> str:
+        def generate(self, prompt: str, schema=None) -> str:
+            if schema is not None:
+                try:
+                    return self.model.with_structured_output(schema, method="json_mode").invoke(prompt)
+                except Exception:
+                    pass
             return self.model.invoke(prompt).content
 
-        async def a_generate(self, prompt: str) -> str:
+        async def a_generate(self, prompt: str, schema=None) -> str:
+            if schema is not None:
+                try:
+                    return await self.model.with_structured_output(schema, method="json_mode").ainvoke(prompt)
+                except Exception:
+                    pass
             return (await self.model.ainvoke(prompt)).content
 
         def get_model_name(self) -> str:
@@ -164,7 +179,7 @@ def build_metrics(judge_model: str):
     kwargs = {"threshold": METRIC_THRESHOLD, "model": judge, "async_mode": False}
     return {
         "answer_relevancy": AnswerRelevancyMetric(**kwargs),
-        "faithfulness": FaithfulnessMetric(**kwargs),
+        "faithfulness": FaithfulnessMetric(**kwargs, truths_extraction_limit=TRUTHS_LIMIT),
         "contextual_precision": ContextualPrecisionMetric(**kwargs),
         "contextual_recall": ContextualRecallMetric(**kwargs),
     }
@@ -201,7 +216,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="End-to-end evaluation of the real RAG pipeline")
     parser.add_argument("--no-deepeval", action="store_true", help="only run the deterministic checks")
     parser.add_argument("--limit", type=int, default=None, help="evaluate only the first N questions")
-    parser.add_argument("--top-k", type=int, default=9, help="chunks retrieved per query (3 CVs -> 3 per CV)")
+    parser.add_argument("--top-k", type=int, default=12, help="chunks retrieved per query (3 CVs -> 3 per CV)")
     args = parser.parse_args()
 
     from dotenv import load_dotenv
